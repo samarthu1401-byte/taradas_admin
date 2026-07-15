@@ -1,9 +1,9 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { generateClient } from 'aws-amplify/api';
 
 const LivePriceContext = createContext();
-const client = generateClient();
+const getClient = () => generateClient();
 
 const GET_GOLD_RATES = `
   query GetGoldRates {
@@ -24,7 +24,7 @@ const GET_GOLD_RATES = `
 const emptyPrices = {
   gold24k: { price: 0, change: 0, direction: 'flat' },
   gold22k: { price: 0, change: 0, direction: 'flat' },
-  silver: { price: 0, change: 0, direction: 'flat' },
+  gold18k: { price: 0, change: 0, direction: 'flat' },
 };
 
 export const useLivePrice = () => useContext(LivePriceContext);
@@ -34,17 +34,18 @@ export const LivePriceProvider = ({ children }) => {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const initialFetchStarted = useRef(false);
 
   const refreshPrices = async () => {
     try {
-      const response = await client.graphql({ query: GET_GOLD_RATES, authMode: 'userPool' });
+      const response = await getClient().graphql({ query: GET_GOLD_RATES, authMode: 'userPool' });
       const latest = response.data?.getGoldRate?.[0];
       if (!latest) throw new Error('No live gold rate available');
 
       setPrices(prev => ({
         gold24k: { price: latest.gold24K, change: latest.gold24K - prev.gold24k.price, direction: latest.gold24K >= prev.gold24k.price ? 'up' : 'down' },
         gold22k: { price: latest.gold22K, change: latest.gold22K - prev.gold22k.price, direction: latest.gold22K >= prev.gold22k.price ? 'up' : 'down' },
-        silver: { price: latest.gold18K, change: latest.gold18K - prev.silver.price, direction: latest.gold18K >= prev.silver.price ? 'up' : 'down' },
+        gold18k: { price: latest.gold18K, change: latest.gold18K - prev.gold18k.price, direction: latest.gold18K >= prev.gold18k.price ? 'up' : 'down' },
       }));
       setLastUpdated(latest.updatedAt || latest.sourceTimestamp || new Date().toISOString());
       setError(null);
@@ -56,6 +57,8 @@ export const LivePriceProvider = ({ children }) => {
   };
 
   useEffect(() => {
+    if (initialFetchStarted.current) return undefined;
+    initialFetchStarted.current = true;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     refreshPrices();
     const interval = setInterval(refreshPrices, 86400000);

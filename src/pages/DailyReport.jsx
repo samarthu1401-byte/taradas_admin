@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useAdmin } from '../context/AdminContext';
 import { IndianRupee, Printer, Users, ReceiptText, TrendingUp } from 'lucide-react';
+import PageLead from '../components/PageLead';
 
 export default function DailyReport() {
   const { getAllUsers, getUserWallet, customers } = useAdmin();
@@ -37,15 +38,13 @@ export default function DailyReport() {
 
   return (
     <div>
+      <PageLead eyebrow="Daily close" title="Collection report" description="A clean summary of today’s customer wallet collections." ><button className="btn" onClick={() => window.print()}><Printer size={16} /> Print / Save PDF</button></PageLead>
       <div className="d-flex justify-between align-center mb-6 no-print">
         <div>
           <p className="text-muted" style={{ fontSize: 13, marginTop: 2 }}>
             {today.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
-        <button className="btn btn-outline" onClick={() => window.print()}>
-          <Printer size={16} /> Print / Save PDF
-        </button>
       </div>
 
       <div className="grid-cards">

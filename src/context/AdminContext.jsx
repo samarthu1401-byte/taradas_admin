@@ -2,7 +2,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { authService } from '../services/authService';
 import { customerService } from '../services/customerService';
-import { walletService } from '../services/walletService';
+import { customerPortfolioService } from '../services/customerPortfolioService';
 import { schemeService } from '../services/schemeService';
 import { fetchAuthSession, signOut } from 'aws-amplify/auth';
 
@@ -15,6 +15,8 @@ export const AdminProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [toasts, setToasts] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [customersLoading, setCustomersLoading] = useState(false);
+  const [customersError, setCustomersError] = useState(null);
 
   const getAuthenticatedAdmin = async () => {
     const user = await authService.getCurrentUser();
@@ -41,7 +43,9 @@ export const AdminProvider = ({ children }) => {
     getAuthenticatedAdmin().then(user => {
       setAdmin(user);
       setLoading(false);
-      if (user?.role === 'admin') refreshCustomers().catch(() => {});
+      if (user?.role === 'admin') refreshCustomers().catch(error => {
+        console.error('Unable to load customers:', error);
+      });
     });
   }, []);
 
@@ -57,6 +61,12 @@ export const AdminProvider = ({ children }) => {
       if (result.isSignedIn) {
         const user = await getAuthenticatedAdmin();
         setAdmin(user);
+        if (user?.role !== 'admin') {
+          await signOut();
+          setAdmin(null);
+          throw new Error('This account does not have administrator access.');
+        }
+        await refreshCustomers();
         showToast('Login successful', 'success');
         return { success: true };
       } else if (result.nextStep?.signInStep === 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED') {
@@ -77,6 +87,7 @@ export const AdminProvider = ({ children }) => {
       if (result.isSignedIn) {
         const user = await getAuthenticatedAdmin();
         setAdmin(user);
+        if (user?.role === 'admin') await refreshCustomers();
         showToast('Password updated successfully', 'success');
         return { success: true };
       }
@@ -92,6 +103,7 @@ export const AdminProvider = ({ children }) => {
     try {
       await signOut();
       setAdmin(null);
+      setCustomers([]);
       showToast('Logged out', 'info');
     } catch (error) {
       console.error("Logout error:", error);
@@ -106,19 +118,35 @@ export const AdminProvider = ({ children }) => {
 
   const getAllUsers = () => customers;
   const getUserWallet = (identifier) => customers.find(customer => customer.userId === identifier || customer.phoneNumber === identifier || customer.phone === identifier)?.wallet || { inrBalance: 0, gold24kBalance: 0, silverBalance: 0, transactions: [], activeSchemes: [] };
+  const addCustomerToList = (customer) => {
+    const item = {
+      ...customer,
+      phone: customer.phoneNumber?.replace(/^\+91/, ''),
+      wallet: { inrBalance: 0, gold24kBalance: 0, silverBalance: 0, transactions: [], activeSchemes: [] },
+    };
+    setCustomers(previous => [item, ...previous.filter(existing => existing.userId !== customer.userId)]);
+  };
   async function refreshCustomers() {
-    const [data, catalog] = await Promise.all([customerService.listCustomers(), schemeService.listSchemes()]);
-    const schemeById = new Map(catalog.map(scheme => [scheme._id, scheme]));
-    const hydrated = await Promise.all(data.map(async customer => {
-      const [wallet, transactions, activeSchemes] = await Promise.all([
-        walletService.getWallet(customer.userId),
-        walletService.listTransactions(customer.userId),
-        schemeService.getCustomerSchemes(customer.userId),
+    setCustomersLoading(true);
+    setCustomersError(null);
+    try {
+      const [data, definitions] = await Promise.all([
+        customerService.listCustomers(),
+        schemeService.listSchemes(),
       ]);
-      return { ...customer, phone: customer.phoneNumber?.replace(/^\+91/, ''), wallet: { ...wallet, transactions: transactions.map(transaction => ({ id: transaction.id, date: transaction.createdAt, amount: transaction.amount, assetAdded: transaction.asset, type: transaction.type, desc: transaction.description })), activeSchemes: activeSchemes.map(scheme => { const definition = schemeById.get(scheme.scheme_id); return { id: scheme._id, name: definition?.scheme_name || scheme.scheme_type, schemeType: scheme.scheme_type, goldCarat: scheme.gold_carat, installmentAmount: scheme.installment_amount, totalInstallments: scheme.total_installments, installmentsPaid: scheme.installments_paid || 0, totalPaid: scheme.total_paid_amount || 0, status: scheme.status || 'Active', maturityDate: scheme.maturity_date }; }) } };
-    }));
-    setCustomers(hydrated);
-    return hydrated;
+      const normalized = await Promise.all(data.map(async customer => ({
+        ...customer,
+        phone: customer.phoneNumber?.replace(/^\+91/, ''),
+        wallet: await customerPortfolioService.load(customer, definitions),
+      })));
+      setCustomers(normalized);
+      return normalized;
+    } catch (error) {
+      setCustomersError(error?.errors?.[0]?.message || error?.message || 'Unable to load customers.');
+      throw error;
+    } finally {
+      setCustomersLoading(false);
+    }
   }
 
   return (
@@ -126,6 +154,8 @@ export const AdminProvider = ({ children }) => {
       admin, loading, login, logout, toasts, showToast,
       changeAdminPin, confirmNewPassword,
       getAllUsers, getUserWallet, refreshCustomers, customers,
+      customersLoading, customersError,
+      addCustomerToList,
     }}>
       {!loading && children}
     </AdminContext.Provider>

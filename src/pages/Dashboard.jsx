@@ -1,197 +1,99 @@
 import { useMemo } from 'react';
-import { useAdmin } from '../context/AdminContext';
-import { Users, Landmark, IndianRupee, TrendingUp, AlertTriangle, CheckCircle, ReceiptText } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import {
+  AlertTriangle, ArrowUpRight, Banknote, CheckCircle2, CircleDollarSign,
+  Gem, Landmark, ReceiptText, TrendingUp, UserPlus, Users, WalletCards,
+} from 'lucide-react';
+import { useAdmin } from '../context/AdminContext';
+
+const formatCurrency = (value) => `₹${value.toLocaleString('en-IN')}`;
 
 export default function Dashboard() {
   const { getAllUsers, getUserWallet, customers } = useAdmin();
 
   const stats = useMemo(() => {
     const users = getAllUsers();
-    const todayLocalDate = new Date().toLocaleDateString('en-IN');
+    const today = new Date().toLocaleDateString('en-IN');
+    const result = { totalInr: 0, totalGold: 0, activeSchemes: 0, missed: 0, todayCollection: 0, completing: 0, recentTxs: [] };
 
-    let totalInr = 0, totalGold = 0, activeSchemesCount = 0;
-    let missedPaymentsCount = 0;
-    let todayCollection = 0, completingSoon = 0;
-    let recentTxs = [];
+    users.forEach((user) => {
+      const wallet = getUserWallet(user.phone);
+      result.totalInr += wallet.totalInvested || 0;
+      result.totalGold += wallet.gold24kBalance || 0;
+      result.activeSchemes += wallet.activeSchemes?.length || 0;
+      result.missed += wallet.activeSchemes?.filter((scheme) => scheme.status === 'Missed Payment').length || 0;
+      result.completing += wallet.activeSchemes?.filter((scheme) => {
+        const remaining = scheme.totalInstallments - scheme.installmentsPaid;
+        return remaining > 0 && remaining <= 2;
+      }).length || 0;
 
-    users.forEach(u => {
-
-      const wallet = getUserWallet(u.phone);
-      totalInr += wallet.inrBalance || 0;
-      totalGold += wallet.gold24kBalance || 0;
-
-      if (wallet.activeSchemes) {
-        activeSchemesCount += wallet.activeSchemes.length;
-        missedPaymentsCount += wallet.activeSchemes.filter(s => s.status === 'Missed Payment').length;
-        wallet.activeSchemes.forEach(s => {
-          const remaining = s.totalInstallments - s.installmentsPaid;
-          if (remaining <= 2 && remaining > 0) completingSoon++;
-        });
-      }
-
-      if (wallet.transactions) {
-        wallet.transactions.forEach(tx => {
-          if (tx.type === 'credit' && new Date(tx.date).toLocaleDateString('en-IN') === todayLocalDate) {
-            if (!tx.assetAdded || tx.assetAdded === 'inr') todayCollection += tx.amount;
-          }
-        });
-        recentTxs = [...recentTxs, ...wallet.transactions.map(t => ({ ...t, customerName: u.name, customerPhone: u.phone }))];
-      }
+      (wallet.transactions || []).forEach((tx) => {
+        if (tx.type === 'credit' && new Date(tx.date).toLocaleDateString('en-IN') === today && (!tx.assetAdded || tx.assetAdded === 'inr')) result.todayCollection += tx.amount;
+        result.recentTxs.push({ ...tx, customerName: user.name, customerPhone: user.phone });
+      });
     });
 
-    recentTxs.sort((a, b) => new Date(b.date) - new Date(a.date));
+    result.recentTxs.sort((a, b) => new Date(b.date) - new Date(a.date));
+    return { ...result, totalCustomers: users.length, recentTxs: result.recentTxs.slice(0, 5) };
+  }, [customers, getAllUsers, getUserWallet]);
 
-    return { totalCustomers: users.length, totalInr, totalGold, activeSchemesCount, missedPaymentsCount, todayCollection, completingSoon, recentTxs: recentTxs.slice(0, 5) };
-  }, [customers]);
+  const health = stats.missed ? 'Attention required' : 'All collections on track';
+  const healthTone = stats.missed ? 'attention' : 'healthy';
 
   return (
-    <div>
-      {/* Alert banners */}
-      {stats.completingSoon > 0 && (
-        <Link to="/scheme-overview" style={{ textDecoration: 'none' }}>
-          <div className="alert alert-success" style={{ cursor: 'pointer' }}>
-            <CheckCircle size={18} style={{ flexShrink: 0, marginTop: 1 }} />
-            <div>
-              <strong>{stats.completingSoon} scheme{stats.completingSoon !== 1 ? 's' : ''} completing soon</strong>
-              — prepare for gold/cash redemption. <span style={{ textDecoration: 'underline' }}>View details</span>
+    <div className="dashboard-premium">
+      <section className="dashboard-hero">
+        <div className="dashboard-hero-copy">
+          <span className="dashboard-eyebrow">Taradas Jewellers · Admin intelligence</span>
+          <h2>Today’s store performance, <em>at a glance.</em></h2>
+          <p>Monitor savings, collections and customer activity from one clear workspace.</p>
+          <div className={`dashboard-health ${healthTone}`}>
+            {stats.missed ? <AlertTriangle size={17} /> : <CheckCircle2 size={17} />}
+            <span>{health}</span>
+            {stats.missed > 0 && <Link to="/missed-payments">Review now <ArrowUpRight size={14} /></Link>}
+          </div>
+        </div>
+        <div className="dashboard-hero-collection">
+          <span>Today’s collection</span>
+          <strong>{formatCurrency(stats.todayCollection)}</strong>
+          <div><TrendingUp size={15} /> Live wallet credits</div>
+        </div>
+      </section>
+
+      <section className="dashboard-metrics">
+        <div className="dashboard-metric metric-navy"><span className="metric-label">Customers</span><strong>{stats.totalCustomers}</strong><small>Registered profiles</small><Users /></div>
+        <div className="dashboard-metric metric-gold"><span className="metric-label">Active schemes</span><strong>{stats.activeSchemes}</strong><small>Ongoing savings plans</small><Landmark /></div>
+        <div className="dashboard-metric metric-emerald"><span className="metric-label">Total invested</span><strong>{formatCurrency(stats.totalInr)}</strong><small>Confirmed scheme payments</small><WalletCards /></div>
+        <div className="dashboard-metric metric-violet"><span className="metric-label">Gold managed</span><strong>{stats.totalGold.toFixed(3)}g</strong><small>24K equivalent balance</small><Gem /></div>
+      </section>
+
+      <section className="dashboard-main-grid">
+        <div className="dashboard-panel dashboard-activity">
+          <div className="dashboard-panel-heading"><div><span>Live activity</span><h3>Recent transactions</h3></div><Link to="/transactions">View ledger <ArrowUpRight size={15} /></Link></div>
+          {stats.recentTxs.length ? <div className="activity-list">{stats.recentTxs.map((tx) => (
+            <div className="activity-item" key={`${tx.id}-${tx.customerPhone}`}>
+              <div className={`activity-icon ${tx.type === 'credit' ? 'credit' : 'debit'}`}><ReceiptText size={16} /></div>
+              <div className="activity-copy"><strong>{tx.customerName || 'Customer'}</strong><span>{tx.desc || tx.scheme || 'Wallet transaction'} · {new Date(tx.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span></div>
+              <div className={`activity-amount ${tx.type === 'credit' ? 'credit' : 'debit'}`}>{tx.type === 'credit' ? '+' : '-'}{tx.assetAdded === 'gold' ? `${tx.amount}g` : formatCurrency(tx.amount || 0)}</div>
             </div>
-          </div>
-        </Link>
-      )}
-      {stats.missedPaymentsCount > 0 && (
-        <Link to="/missed-payments" style={{ textDecoration: 'none' }}>
-          <div className="alert alert-danger" style={{ cursor: 'pointer' }}>
-            <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: 1 }} />
-            <div>
-              <strong>{stats.missedPaymentsCount} customer{stats.missedPaymentsCount !== 1 ? 's' : ''} with missed payments</strong>
-              — send WhatsApp reminders now. <span style={{ textDecoration: 'underline' }}>View defaulters</span>
-            </div>
-          </div>
-        </Link>
-      )}
-
-      <div className="grid-cards">
-        <div className="stat-card">
-          <div className="stat-card-info">
-            <h4>Total Customers</h4>
-            <div className="value">{stats.totalCustomers}</div>
-          </div>
-          <div className="stat-card-icon" style={{ background: 'rgba(59,130,246,0.1)', color: '#3b82f6' }}>
-            <Users size={24} />
-          </div>
+          ))}</div> : <div className="dashboard-empty"><CircleDollarSign size={28} /><strong>No transactions yet</strong><span>New wallet activity will appear here.</span></div>}
         </div>
 
-        <div className="stat-card">
-          <div className="stat-card-info">
-            <h4>Active Schemes</h4>
-            <div className="value">{stats.activeSchemesCount}</div>
-          </div>
-          <div className="stat-card-icon" style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>
-            <Landmark size={24} />
-          </div>
+        <div className="dashboard-panel dashboard-priority">
+          <div className="dashboard-panel-heading"><div><span>Priority desk</span><h3>What needs attention</h3></div></div>
+          <Link className="priority-row" to="/missed-payments"><span className="priority-icon danger"><AlertTriangle size={17} /></span><div><strong>Missed payments</strong><small>{stats.missed ? `${stats.missed} customer plan${stats.missed === 1 ? '' : 's'} need follow-up` : 'No pending reminders'}</small></div><b>{stats.missed}</b><Chevron /></Link>
+          <Link className="priority-row" to="/scheme-overview"><span className="priority-icon success"><CheckCircle2 size={17} /></span><div><strong>Completing soon</strong><small>Plans within their final installments</small></div><b>{stats.completing}</b><Chevron /></Link>
+          <Link className="priority-row" to="/withdrawals"><span className="priority-icon gold"><Banknote size={17} /></span><div><strong>Withdrawal desk</strong><small>Review pending customer requests</small></div><Chevron /></Link>
         </div>
+      </section>
 
-        <div className="stat-card">
-          <div className="stat-card-info">
-            <h4>Total INR Vaulted</h4>
-            <div className="value">₹{stats.totalInr.toLocaleString('en-IN')}</div>
-          </div>
-          <div className="stat-card-icon" style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>
-            <IndianRupee size={24} />
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-card-info">
-            <h4>Gold Managed</h4>
-            <div className="value text-gold">{stats.totalGold.toFixed(3)}g</div>
-          </div>
-          <div className="stat-card-icon" style={{ background: 'rgba(198,153,62,0.1)', color: 'var(--gold)' }}>
-            <TrendingUp size={24} />
-          </div>
-        </div>
-
-        <Link to="/daily-report" className="stat-card" style={{ textDecoration: 'none' }}>
-          <div className="stat-card-info">
-            <h4>Today's Collection</h4>
-            <div className="value" style={{ color: '#10b981' }}>₹{stats.todayCollection.toLocaleString('en-IN')}</div>
-          </div>
-          <div className="stat-card-icon" style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>
-            <ReceiptText size={24} />
-          </div>
-        </Link>
-
-        <Link to="/missed-payments" className="stat-card" style={{ textDecoration: 'none', borderLeft: stats.missedPaymentsCount > 0 ? '4px solid #ef4444' : '' }}>
-          <div className="stat-card-info">
-            <h4 className={stats.missedPaymentsCount > 0 ? 'text-danger' : ''}>Missed Payments</h4>
-            <div className={`value ${stats.missedPaymentsCount > 0 ? 'text-danger' : ''}`}>{stats.missedPaymentsCount}</div>
-          </div>
-          <div className="stat-card-icon" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
-            <AlertTriangle size={24} />
-          </div>
-        </Link>
-
-
-        <Link to="/scheme-overview" className="stat-card" style={{ textDecoration: 'none', borderLeft: stats.completingSoon > 0 ? '4px solid #10b981' : '' }}>
-          <div className="stat-card-info">
-            <h4 className={stats.completingSoon > 0 ? 'text-success' : ''}>Completing Soon</h4>
-            <div className={`value ${stats.completingSoon > 0 ? 'text-success' : ''}`}>{stats.completingSoon}</div>
-          </div>
-          <div className="stat-card-icon" style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>
-            <CheckCircle size={24} />
-          </div>
-        </Link>
-      </div>
-
-      <div className="panel">
-        <div className="panel-header">
-          <h3>Recent Transactions</h3>
-          <Link to="/transactions" className="btn btn-outline" style={{ padding: '6px 14px', fontSize: 13 }}>View All</Link>
-        </div>
-        <div className="table-container">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Customer</th>
-                <th>Description</th>
-                <th>Type</th>
-                <th>Amount / Asset</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stats.recentTxs.length === 0 ? (
-                <tr>
-                  <td colSpan="5">
-                    <div className="empty-state" style={{ padding: 32 }}>
-                      <div className="empty-state-icon">💳</div>
-                      <div className="empty-state-title">No transactions yet</div>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                stats.recentTxs.map(tx => (
-                  <tr key={`${tx.id}-${tx.customerPhone}`}>
-                    <td style={{ fontSize: 13 }}>{new Date(tx.date).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
-                    <td>
-                      <div style={{ fontWeight: 600 }}>{tx.customerName || 'Unknown'}</div>
-                      <div className="text-muted" style={{ fontSize: 12 }}>+91 {tx.customerPhone}</div>
-                    </td>
-                    <td style={{ fontSize: 13 }}>{tx.desc || tx.scheme}</td>
-                    <td>
-                      <span className={`badge ${tx.type === 'credit' ? 'success' : 'danger'}`}>{tx.type}</span>
-                    </td>
-                    <td style={{ fontWeight: 700, color: tx.assetAdded === 'gold' ? 'var(--gold-dark)' : tx.assetAdded === 'silver' ? '#666' : 'var(--maroon)' }}>
-                      {tx.type === 'credit' ? '+' : '-'}{tx.amount} {tx.assetAdded === 'gold' ? 'g Gold' : tx.assetAdded === 'silver' ? 'g Silver' : 'INR'}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <section className="dashboard-quick-actions">
+        <Link to="/register"><UserPlus size={19} /><span><strong>Register customer</strong><small>Create a customer ID and login</small></span><ArrowUpRight size={17} /></Link>
+        <Link to="/accept-cash"><Banknote size={19} /><span><strong>Accept cash</strong><small>Credit a customer wallet</small></span><ArrowUpRight size={17} /></Link>
+        <Link to="/schemes"><Landmark size={19} /><span><strong>Manage schemes</strong><small>Create or update gold plans</small></span><ArrowUpRight size={17} /></Link>
+      </section>
     </div>
   );
 }
+
+function Chevron() { return <ArrowUpRight className="priority-arrow" size={16} />; }

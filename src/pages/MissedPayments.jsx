@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useAdmin } from '../context/AdminContext';
 import { AlertTriangle, MessageCircle, Send } from 'lucide-react';
+import PageLead from '../components/PageLead';
 
 const buildMessage = (name, scheme) =>
   `Dear ${name},\n\nThis is a gentle reminder from Taradas Jewellers regarding your "${scheme}" scheme.\n\nIt looks like you missed your recent installment. Please clear your pending dues to continue enjoying the benefits of your scheme.\n\nThank you,\nTaradas Jewellers`;
@@ -38,6 +39,7 @@ export default function MissedPayments() {
   };
 
   return (
+    <><PageLead eyebrow="Customer care" title="Missed payments" description="Keep every savings plan on track with timely, thoughtful reminders." />
     <div className="panel" style={{ borderTop: '4px solid #ef4444' }}>
       <div className="panel-header">
         <h3 className="d-flex align-center gap-2 text-danger">
@@ -104,6 +106,6 @@ export default function MissedPayments() {
           </table>
         </div>
       )}
-    </div>
+    </div></>
   );
 }

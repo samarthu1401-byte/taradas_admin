@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { useAdmin } from '../context/AdminContext';
 import { Copy, KeyRound, UserPlus } from 'lucide-react';
 import { authService } from '../services/authService';
+import PageLead from '../components/PageLead';
 
 
 export default function RegisterCustomer() {
-  const { showToast, refreshCustomers } = useAdmin();
+  const { showToast, addCustomerToList } = useAdmin();
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -46,8 +47,7 @@ export default function RegisterCustomer() {
       const customerId = `CUS${crypto.randomUUID().replaceAll('-', '').slice(0, 8).toUpperCase()}`;
       const created = await authService.saveProfileToVault({ ...profileData, userId: customerId });
 
-      await refreshCustomers();
-
+      addCustomerToList(created);
       setCreatedCustomer({ customerId: created.customerId, initialPassword: created.initialPassword });
       showToast('Customer registered successfully', 'success');
       setFormData({ name: '', phone: '', email: '', address: '', city: '', pincode: '', aadharcardNo: '', pancardNo: '' });
@@ -62,6 +62,7 @@ export default function RegisterCustomer() {
   };
 
   return (
+    <><PageLead eyebrow="Customer onboarding" title="Register customer" description="Create a secure customer ID and one-time login credentials." />
     <div className="panel" style={{ maxWidth: 800 }}>
       <div className="panel-header">
         <h3 className="d-flex align-center gap-2">
@@ -136,6 +137,6 @@ export default function RegisterCustomer() {
           </div>
         </div>
       )}
-    </div>
+    </div></>
   );
 }

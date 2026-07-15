@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useAdmin } from '../context/AdminContext';
 import { Landmark, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import PageLead from '../components/PageLead';
 
 export default function SchemeOverview() {
   const { getAllUsers, getUserWallet, customers } = useAdmin();
@@ -43,6 +44,7 @@ export default function SchemeOverview() {
 
   return (
     <div>
+      <PageLead eyebrow="Portfolio health" title="Scheme overview" description="Monitor active plans, maturity readiness and missed installment risk." />
       <div className="grid-cards" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
         <div className="stat-card" style={{ cursor: 'pointer', borderLeft: filter === 'all' ? '3px solid var(--gold)' : '' }} onClick={() => setFilter('all')}>
           <div className="stat-card-info">

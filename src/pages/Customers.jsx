@@ -1,13 +1,14 @@
-import { Fragment, useState, useMemo } from 'react';
+import { Fragment, useEffect, useState, useMemo } from 'react';
 import { useAdmin } from '../context/AdminContext';
 import { useLivePrice } from '../context/LivePriceContext';
 import { Search, ChevronDown, ChevronUp, Edit, IndianRupee, Trash2, X, UserPlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { walletService } from '../services/walletService';
 import { customerService } from '../services/customerService';
+import PageLead from '../components/PageLead';
 
 export default function Customers() {
-  const { getAllUsers, getUserWallet, showToast, customers, refreshCustomers } = useAdmin();
+  const { getAllUsers, getUserWallet, showToast, customers, refreshCustomers, customersLoading, customersError } = useAdmin();
   const { prices } = useLivePrice();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -23,6 +24,12 @@ export default function Customers() {
   const [editingUser, setEditingUser] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [savingCustomer, setSavingCustomer] = useState(false);
+
+  useEffect(() => {
+    refreshCustomers().catch(error => {
+      console.error('Customer CRM load failed:', error);
+    });
+  }, []);
 
   const deleteCustomer = async (user) => {
     if (!window.confirm(`Delete ${user.name}? This permanently removes the customer login and profile.`)) return;
@@ -92,9 +99,6 @@ export default function Customers() {
       if (cashCreditType === 'gold24k') {
         assetAmount = val / prices.gold24k.price;
         assetAdded = 'gold';
-      } else if (cashCreditType === 'silver') {
-        assetAmount = val / prices.silver.price;
-        assetAdded = 'silver';
       }
 
       await walletService.creditWallet({ customerId: cashUser.userId, asset: cashCreditType, amount: parseFloat(assetAmount.toFixed(4)), type: 'credit', description: 'Cash deposit by Admin' });
@@ -107,6 +111,7 @@ export default function Customers() {
 
   return (
     <>
+      <PageLead eyebrow="Customer workspace" title="Customer CRM" description="Search, review and manage every customer relationship in one place." ><Link to="/register" className="btn btn-primary"><UserPlus size={16} /> Register Customer</Link></PageLead>
       <div className="panel">
         <div className="panel-header">
           <h3>Customer CRM</h3>
@@ -122,9 +127,6 @@ export default function Customers() {
                 onChange={e => setSearchTerm(e.target.value)}
               />
             </div>
-            <Link to="/register" className="btn btn-primary d-flex align-center gap-2">
-              <UserPlus size={18} /> Register Customer
-            </Link>
           </div>
         </div>
 
@@ -137,12 +139,16 @@ export default function Customers() {
                 <th>Contact Info</th>
                 <th>City</th>
                 <th>PIN Code</th>
-                <th>Wallet Balance</th>
+                <th>Gold Portfolio</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {paginatedUsers.length === 0 ? (
+              {customersLoading && customers.length === 0 ? (
+                <tr><td colSpan="7" className="text-center text-muted">Loading customer details…</td></tr>
+              ) : customersError ? (
+                <tr><td colSpan="7" className="text-center"><div style={{ color: '#dc2626', marginBottom: 10 }}>{customersError}</div><button className="btn btn-outline" onClick={() => refreshCustomers()}>Retry</button></td></tr>
+              ) : paginatedUsers.length === 0 ? (
                 <tr><td colSpan="7" className="text-center text-muted">No customers found</td></tr>
               ) : (
                 paginatedUsers.map(user => (
@@ -166,8 +172,8 @@ export default function Customers() {
                         <div style={{ fontSize: 13 }}>{user.pincode || '—'}</div>
                       </td>
                       <td>
-                        <div style={{ fontWeight: 'bold' }}>₹{(user.wallet?.inrBalance || 0).toLocaleString()}</div>
-                        <div className="text-gold" style={{ fontSize: 12 }}>{(user.wallet?.gold24kBalance || 0).toFixed(3)}g Gold</div>
+                        <div style={{ fontWeight: 'bold' }}>₹{(user.wallet?.totalInvested || 0).toLocaleString('en-IN')} invested</div>
+                        <div className="text-gold" style={{ fontSize: 12 }}>{(user.wallet?.gold24kBalance || 0).toFixed(4)}g Gold</div>
                       </td>
                       <td>
                         <div className="d-flex gap-2" onClick={e => e.stopPropagation()}>
@@ -204,8 +210,8 @@ export default function Customers() {
                               </h4>
                               <div className="d-flex flex-column gap-2" style={{ fontSize: 13 }}>
                                 <div><strong>Address:</strong> {user.address || 'Not provided'}</div>
-                                <div><strong>Referred By:</strong> {user.referredBy || 'None'}</div>
-                                <div><strong>Referral Code:</strong> {user.referralCode || `TJ${user.phone.substring(6)}`}</div>
+                                <div><strong>City:</strong> {user.city || 'Not provided'}</div>
+                                <div><strong>Customer ID:</strong> {user.customerId}</div>
                               </div>
                             </div>
 
@@ -222,6 +228,10 @@ export default function Customers() {
                                       <div className="d-flex justify-between text-muted" style={{ fontSize: 12 }}>
                                         <span>Progress: {s.installmentsPaid}/{s.totalInstallments}</span>
                                         <span>Paid: ₹{s.totalPaid.toLocaleString()}</span>
+                                      </div>
+                                      <div className="d-flex justify-between text-muted" style={{ fontSize: 12, marginTop: 5 }}>
+                                        <span>{s.goldCarat} · {s.schemeType}</span>
+                                        <span>{s.totalGoldGrams.toFixed(4)}g</span>
                                       </div>
                                     </div>
                                   ))}
@@ -327,7 +337,6 @@ export default function Customers() {
                     {[
                       { value: 'inr', label: 'INR Balance', sub: null },
                       { value: 'gold24k', label: '24K Gold', sub: cashAmount && cashCreditType === 'gold24k' ? `${(parseFloat(cashAmount) / prices.gold24k.price).toFixed(4)}g` : null },
-                      { value: 'silver', label: 'Silver', sub: cashAmount && cashCreditType === 'silver' ? `${(parseFloat(cashAmount) / prices.silver.price).toFixed(2)}g` : null },
                     ].map(opt => (
                       <label
                         key={opt.value}

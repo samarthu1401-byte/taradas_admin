@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useAdmin } from '../context/AdminContext';
 import { Plus, Edit, Trash2, ShieldAlert, X, RefreshCw } from 'lucide-react';
 import { generateClient } from 'aws-amplify/api';
+import PageLead from '../components/PageLead';
 
-const client = generateClient();
+const getClient = () => generateClient();
 
 const GET_SCHEMES = `
   query {
@@ -54,7 +55,7 @@ export default function Schemes() {
   const fetchSchemes = async () => {
     try {
       setIsLoading(true);
-      const response = await client.graphql({ query: GET_SCHEMES, authMode: "userPool" });
+      const response = await getClient().graphql({ query: GET_SCHEMES, authMode: "userPool" });
       const apiSchemes = response.data.getSchemes || [];
       
       const mappedSchemes = apiSchemes.map(s => ({
@@ -111,7 +112,7 @@ export default function Schemes() {
     
     try {
       const input = { scheme_name: formData.name, scheme_type: formData.schemeType, installment_amount: parseFloat(formData.installmentAmount), total_installments: parseInt(formData.totalInstallments, 10), duration_months: parseInt(formData.durationMonths, 10), description: formData.description || 'No description provided' };
-      await client.graphql({
+      await getClient().graphql({
         query: editingId ? UPDATE_SCHEME : CREATE_SCHEME,
         variables: editingId ? { input: { id: editingId, ...input } } : { input },
         authMode: "userPool"
@@ -182,12 +183,10 @@ export default function Schemes() {
   const pendingScheme = schemes.find(s => s.id === pendingDeleteId);
 
   return (
+    <><PageLead eyebrow="Product studio" title="Gold schemes" description="Create and manage savings plans available to your customers." ><button className="btn btn-primary" onClick={() => handleOpenModal()}><Plus size={16} /> Create Scheme</button></PageLead>
     <div className="panel">
       <div className="panel-header">
         <h3>Gold & Silver Schemes</h3>
-        <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-          <Plus size={18} /> Create Scheme
-        </button>
       </div>
 
       {isLoading ? (
@@ -199,24 +198,24 @@ export default function Schemes() {
           No schemes found. Create one to get started!
         </div>
       ) : (
-        <div className="grid-cards" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
+        <div className="scheme-grid">
           {schemes.map(s => (
-            <div key={s.id} style={{ background: '#fafafa', border: '1px solid #eee', borderRadius: 12, padding: 24, display: 'flex', flexDirection: 'column' }}>
+            <div key={s.id} className="scheme-card">
               <div className="d-flex justify-between align-center mb-3">
                 <h4 style={{ fontSize: 18, color: 'var(--maroon)' }}>{s.name}</h4>
                 <span className="badge info">{s.schemeType}</span>
               </div>
-              <p className="text-muted mb-3" style={{ fontSize: 13, flex: 1 }}>{s.description}</p>
+              <p className="scheme-card-description">{s.description}</p>
               <div className="mb-4">
                 <div style={{ fontSize: 12, color: 'var(--text-light)', textTransform: 'uppercase' }}>Installment Amount</div>
                 <div style={{ fontSize: 20, fontWeight: 'bold' }}>₹{s.installmentAmount?.toLocaleString()}</div>
                 <div style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 4 }}>Total Installments: {s.totalInstallments}</div>
               </div>
-              <div className="d-flex gap-2">
-                <button className="btn btn-outline w-100" style={{ padding: '8px', fontSize: 13 }} onClick={() => handleOpenModal(s)}>
+              <div className="scheme-card-actions">
+                <button className="btn btn-outline w-100" onClick={() => handleOpenModal(s)}>
                   <Edit size={14} /> Edit
                 </button>
-                <button className="btn btn-danger" style={{ padding: '8px' }} onClick={() => handleDeleteClick(s.id)}>
+                <button className="btn btn-danger" onClick={() => handleDeleteClick(s.id)}>
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -361,6 +360,6 @@ export default function Schemes() {
           </div>
         </div>
       )}
-    </div>
+    </div></>
   );
 }
