@@ -3,9 +3,9 @@
 const awsConfig = {
   Auth: {
     Cognito: {
-      userPoolId: "ap-south-1_BCnpX8nNg",
-      userPoolClientId: "5qu71b86bnd7kn395vd6kbvp6j",
-      region: "ap-south-1",
+      userPoolId: import.meta.env.VITE_AWS_USER_POOL_ID,
+      userPoolClientId: import.meta.env.VITE_AWS_USER_POOL_CLIENT_ID,
+      region: import.meta.env.VITE_AWS_REGION,
       loginWith: {
         username: true,
       },
@@ -13,9 +13,8 @@ const awsConfig = {
   },
   API: {
     GraphQL: {
-      endpoint:
-        "https://32ipf5csjjfprksuqqqdmgt2rq.appsync-api.ap-south-1.amazonaws.com/graphql",
-      region: "ap-south-1",
+      endpoint: import.meta.env.VITE_AWS_APPSYNC_ENDPOINT,
+      region: import.meta.env.VITE_AWS_REGION,
       defaultAuthMode: "userPool",
     },
   },
