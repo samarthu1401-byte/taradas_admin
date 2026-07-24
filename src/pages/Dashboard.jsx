@@ -9,15 +9,15 @@ import { useAdmin } from '../context/AdminContext';
 const formatCurrency = (value) => `₹${value.toLocaleString('en-IN')}`;
 
 export default function Dashboard() {
-  const { getAllUsers, getUserWallet, customers } = useAdmin();
+  const { customers } = useAdmin();
 
   const stats = useMemo(() => {
-    const users = getAllUsers();
+    const users = customers;
     const today = new Date().toLocaleDateString('en-IN');
     const result = { totalInr: 0, totalGold: 0, activeSchemes: 0, missed: 0, todayCollection: 0, completing: 0, recentTxs: [] };
 
     users.forEach((user) => {
-      const wallet = getUserWallet(user.phone);
+      const wallet = user.wallet;
       result.totalInr += wallet.totalInvested || 0;
       result.totalGold += wallet.gold24kBalance || 0;
       result.activeSchemes += wallet.activeSchemes?.length || 0;
@@ -28,14 +28,26 @@ export default function Dashboard() {
       }).length || 0;
 
       (wallet.transactions || []).forEach((tx) => {
-        if (tx.type === 'credit' && new Date(tx.date).toLocaleDateString('en-IN') === today && (!tx.assetAdded || tx.assetAdded === 'inr')) result.todayCollection += tx.amount;
+        let isToday = false;
+        try {
+          const d = new Date(tx.date || Date.now());
+          isToday = !isNaN(d.getTime()) && d.toLocaleDateString('en-IN') === today;
+        } catch { isToday = false; }
+
+        if (tx.type === 'credit' && isToday && (!tx.assetAdded || tx.assetAdded === 'inr')) {
+          result.todayCollection += (Number(tx.amount) || 0);
+        }
         result.recentTxs.push({ ...tx, customerName: user.name, customerPhone: user.phone });
       });
     });
 
-    result.recentTxs.sort((a, b) => new Date(b.date) - new Date(a.date));
+    result.recentTxs.sort((a, b) => {
+      const tA = new Date(a.date).getTime() || 0;
+      const tB = new Date(b.date).getTime() || 0;
+      return tB - tA;
+    });
     return { ...result, totalCustomers: users.length, recentTxs: result.recentTxs.slice(0, 5) };
-  }, [customers, getAllUsers, getUserWallet]);
+  }, [customers]);
 
   const health = stats.missed ? 'Attention required' : 'All collections on track';
   const healthTone = stats.missed ? 'attention' : 'healthy';
@@ -63,7 +75,7 @@ export default function Dashboard() {
       <section className="dashboard-metrics">
         <div className="dashboard-metric metric-navy"><span className="metric-label">Customers</span><strong>{stats.totalCustomers}</strong><small>Registered profiles</small><Users /></div>
         <div className="dashboard-metric metric-gold"><span className="metric-label">Active schemes</span><strong>{stats.activeSchemes}</strong><small>Ongoing savings plans</small><Landmark /></div>
-        <div className="dashboard-metric metric-emerald"><span className="metric-label">Total invested</span><strong>{formatCurrency(stats.totalInr)}</strong><small>Confirmed scheme payments</small><WalletCards /></div>
+        <div className="dashboard-metric metric-emerald"><span className="metric-label">Advance paid</span><strong>{formatCurrency(stats.totalInr)}</strong><small>Confirmed gold-plan payments</small><WalletCards /></div>
         <div className="dashboard-metric metric-violet"><span className="metric-label">Gold managed</span><strong>{stats.totalGold.toFixed(3)}g</strong><small>24K equivalent balance</small><Gem /></div>
       </section>
 
@@ -73,7 +85,16 @@ export default function Dashboard() {
           {stats.recentTxs.length ? <div className="activity-list">{stats.recentTxs.map((tx) => (
             <div className="activity-item" key={`${tx.id}-${tx.customerPhone}`}>
               <div className={`activity-icon ${tx.type === 'credit' ? 'credit' : 'debit'}`}><ReceiptText size={16} /></div>
-              <div className="activity-copy"><strong>{tx.customerName || 'Customer'}</strong><span>{tx.desc || tx.scheme || 'Wallet transaction'} · {new Date(tx.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span></div>
+              <div className="activity-copy">
+                <strong>{tx.customerName || 'Customer'}</strong>
+                <span>{tx.desc || tx.scheme || 'Wallet transaction'} · {(() => {
+                  if (!tx.date) return '';
+                  try {
+                    const d = new Date(tx.date);
+                    return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+                  } catch { return ''; }
+                })()}</span>
+              </div>
               <div className={`activity-amount ${tx.type === 'credit' ? 'credit' : 'debit'}`}>{tx.type === 'credit' ? '+' : '-'}{tx.assetAdded === 'gold' ? `${tx.amount}g` : formatCurrency(tx.amount || 0)}</div>
             </div>
           ))}</div> : <div className="dashboard-empty"><CircleDollarSign size={28} /><strong>No transactions yet</strong><span>New wallet activity will appear here.</span></div>}

@@ -59,7 +59,6 @@ export const LivePriceProvider = ({ children }) => {
   useEffect(() => {
     if (initialFetchStarted.current) return undefined;
     initialFetchStarted.current = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     refreshPrices();
     const interval = setInterval(refreshPrices, 86400000);
     return () => clearInterval(interval);

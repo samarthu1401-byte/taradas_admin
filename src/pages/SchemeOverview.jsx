@@ -4,16 +4,16 @@ import { Landmark, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 import PageLead from '../components/PageLead';
 
 export default function SchemeOverview() {
-  const { getAllUsers, getUserWallet, customers } = useAdmin();
+  const { customers } = useAdmin();
   const [filter, setFilter] = useState('all');
 
   const { schemes, stats } = useMemo(() => {
-    const users = getAllUsers();
+    const users = customers;
     const all = [];
     let active = 0, missed = 0, completing = 0;
 
     users.forEach(user => {
-      const wallet = getUserWallet(user.phone);
+      const wallet = user.wallet;
       (wallet.activeSchemes || []).forEach(scheme => {
         const remaining = scheme.totalInstallments - scheme.installmentsPaid;
         const isCompleting = remaining <= 2 && remaining > 0;

@@ -116,8 +116,6 @@ export const AdminProvider = ({ children }) => {
     return false;
   };
 
-  const getAllUsers = () => customers;
-  const getUserWallet = (identifier) => customers.find(customer => customer.userId === identifier || customer.phoneNumber === identifier || customer.phone === identifier)?.wallet || { inrBalance: 0, gold24kBalance: 0, silverBalance: 0, transactions: [], activeSchemes: [] };
   const addCustomerToList = (customer) => {
     const item = {
       ...customer,
@@ -153,7 +151,7 @@ export const AdminProvider = ({ children }) => {
     <AdminContext.Provider value={{
       admin, loading, login, logout, toasts, showToast,
       changeAdminPin, confirmNewPassword,
-      getAllUsers, getUserWallet, refreshCustomers, customers,
+      refreshCustomers, customers,
       customersLoading, customersError,
       addCustomerToList,
     }}>

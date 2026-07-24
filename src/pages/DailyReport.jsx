@@ -1,24 +1,29 @@
-import { useMemo } from 'react';
 import { useAdmin } from '../context/AdminContext';
 import { IndianRupee, Printer, Users, ReceiptText, TrendingUp } from 'lucide-react';
 import PageLead from '../components/PageLead';
 
 export default function DailyReport() {
-  const { getAllUsers, getUserWallet, customers } = useAdmin();
+  const { customers } = useAdmin();
 
   const today = new Date();
   const todayLocalDate = today.toLocaleDateString('en-IN');
 
-  const report = useMemo(() => {
-    const users = getAllUsers();
+  const report = (() => {
+    const users = customers;
     const collections = [];
     let totalInr = 0, totalGold = 0, totalSilver = 0, txCount = 0;
 
     users.forEach(user => {
-      const wallet = getUserWallet(user.phone);
-      const todayTxs = (wallet.transactions || []).filter(tx =>
-        tx.type === 'credit' && new Date(tx.date).toLocaleDateString('en-IN') === todayLocalDate
-      );
+      const wallet = user.wallet;
+      const todayTxs = (wallet.transactions || []).filter(tx => {
+        if (tx.type !== 'credit') return false;
+        try {
+          const d = new Date(tx.date || Date.now());
+          return !isNaN(d.getTime()) && d.toLocaleDateString('en-IN') === todayLocalDate;
+        } catch {
+          return false;
+        }
+      });
 
       if (todayTxs.length === 0) return;
 
@@ -34,7 +39,7 @@ export default function DailyReport() {
     });
 
     return { collections, totalInr, totalGold, totalSilver, txCount };
-  }, [customers]);
+  })();
 
   return (
     <div>
@@ -131,7 +136,13 @@ export default function DailyReport() {
                     <td>
                       {c.txs.map(tx => (
                         <div key={tx.id} style={{ fontSize: 12, color: 'var(--text-light)', marginBottom: 2 }}>
-                          {new Date(tx.date).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                          {(() => {
+                            if (!tx.date) return '';
+                            try {
+                              const d = new Date(tx.date);
+                              return isNaN(d.getTime()) ? '' : d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+                            } catch { return ''; }
+                          })()}
                           {' — '}{tx.desc || tx.scheme || 'Credit'}
                         </div>
                       ))}

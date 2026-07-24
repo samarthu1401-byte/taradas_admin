@@ -29,14 +29,14 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-const AdminLayout = ({ children, collapsed, onToggleCollapse, isDark, onToggleDark }) => {
+const AdminLayout = ({ children, isDark, onToggleDark }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="admin-layout">
-      <Sidebar isOpen={sidebarOpen} collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
+      <Sidebar isOpen={sidebarOpen} collapsed={false} />
       {sidebarOpen && <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
-      <div className={`main-content${collapsed ? ' sidebar-collapsed' : ''}`}>
+      <div className="main-content">
         <TopBar onMenuClick={() => setSidebarOpen(!sidebarOpen)} isDark={isDark} onToggleDark={onToggleDark} />
         <div className="page-container">
           {children}
@@ -47,19 +47,11 @@ const AdminLayout = ({ children, collapsed, onToggleCollapse, isDark, onToggleDa
 };
 
 function App() {
-  const [collapsed, setCollapsed] = useState(false);
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
   }, [isDark]);
-
-  const handleToggleCollapse = () => {
-    setCollapsed(prev => {
-      const next = !prev;
-      return next;
-    });
-  };
 
   return (
     <AdminProvider>
@@ -69,7 +61,7 @@ function App() {
           <Route path="/unauthorized" element={<Unauthorized />} />
           <Route path="/*" element={
             <ProtectedRoute>
-              <AdminLayout collapsed={collapsed} onToggleCollapse={handleToggleCollapse} isDark={isDark} onToggleDark={() => setIsDark(d => !d)}>
+              <AdminLayout isDark={isDark} onToggleDark={() => setIsDark(d => !d)}>
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/customers" element={<Customers />} />

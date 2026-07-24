@@ -7,15 +7,15 @@ import {
   WalletCards, DatabaseBackup
 } from 'lucide-react';
 
-export default function Sidebar({ isOpen, collapsed, onToggleCollapse }) {
-  const { logout, getAllUsers, getUserWallet, customers } = useAdmin();
+export default function Sidebar({ isOpen, collapsed }) {
+  const { logout, customers } = useAdmin();
 
   const badges = useMemo(() => {
     try {
-      const users = getAllUsers();
+      const users = customers;
       let missedCount = 0;
       users.forEach(u => {
-        const wallet = getUserWallet(u.phone);
+        const wallet = u.wallet;
         if (wallet.activeSchemes) {
           missedCount += wallet.activeSchemes.filter(s => s.status === 'Missed Payment').length;
         }
@@ -49,9 +49,7 @@ export default function Sidebar({ isOpen, collapsed, onToggleCollapse }) {
       <div className="sidebar-header">
         <div
           className="logo-icon"
-          onClick={onToggleCollapse}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          style={{ cursor: 'pointer', flexShrink: 0 }}
+          style={{ flexShrink: 0 }}
         >
           T
         </div>

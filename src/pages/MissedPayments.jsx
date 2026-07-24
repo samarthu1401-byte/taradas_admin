@@ -7,13 +7,13 @@ const buildMessage = (name, scheme) =>
   `Dear ${name},\n\nThis is a gentle reminder from Taradas Jewellers regarding your "${scheme}" scheme.\n\nIt looks like you missed your recent installment. Please clear your pending dues to continue enjoying the benefits of your scheme.\n\nThank you,\nTaradas Jewellers`;
 
 export default function MissedPayments() {
-  const { getAllUsers, getUserWallet, customers } = useAdmin();
+  const { customers } = useAdmin();
 
   const defaulters = useMemo(() => {
-    const users = getAllUsers();
+    const users = customers;
     const list = [];
     users.forEach(u => {
-      const wallet = getUserWallet(u.phone);
+      const wallet = u.wallet;
       (wallet.activeSchemes || []).forEach(scheme => {
         if (scheme.status === 'Missed Payment') {
           list.push({
@@ -43,7 +43,7 @@ export default function MissedPayments() {
     <div className="panel" style={{ borderTop: '4px solid #ef4444' }}>
       <div className="panel-header">
         <h3 className="d-flex align-center gap-2 text-danger">
-          <AlertTriangle size={20} /> SIP / Scheme Defaulters
+          <AlertTriangle size={20} /> Missed Gold-Plan Payments
         </h3>
         {defaulters.length > 0 && (
           <button className="btn btn-whatsapp" onClick={sendRemindAll}>

@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAdmin } from '../context/AdminContext';
-import { Filter, Download } from 'lucide-react';
+import { AlertTriangle, Filter, Download, RefreshCw } from 'lucide-react';
 import PageLead from '../components/PageLead';
+import { paymentExceptionService } from '../services/paymentExceptionService';
 
 export default function Transactions() {
   const { customers } = useAdmin();
@@ -10,6 +11,16 @@ export default function Transactions() {
   const [customerQuery, setCustomerQuery] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [exceptions, setExceptions] = useState([]);
+  const [exceptionsLoading, setExceptionsLoading] = useState(true);
+  const loadExceptions = useCallback(async () => {
+    setExceptionsLoading(true);
+    try { setExceptions(await paymentExceptionService.list()); }
+    catch (error) { console.error('Unable to load payment exceptions', error); }
+    finally { setExceptionsLoading(false); }
+  }, []);
+  useEffect(() => { const timer = window.setTimeout(() => void loadExceptions(), 0); return () => window.clearTimeout(timer); }, [loadExceptions]);
+  const customersByUserId = useMemo(() => new Map(customers.map(customer => [customer.userId, customer])), [customers]);
 
   const transactions = useMemo(() => customers.flatMap(customer =>
     (customer.wallet?.transactions || []).map(item => ({
@@ -64,10 +75,14 @@ export default function Transactions() {
   };
 
   return (
-    <><PageLead eyebrow="Finance desk" title="Transaction ledger" description="Review every wallet credit and debit with customer-level filtering." />
+    <><PageLead eyebrow="Payment operations" title="Transaction ledger" description="Review confirmed, failed and unresolved gold-plan payments." />
+    <div className="panel" style={{ marginBottom: 20 }}>
+      <div className="panel-header"><div><span className="ledger-kicker">Requires attention</span><h3>Payment exceptions</h3></div><button className="btn btn-outline" onClick={() => void loadExceptions()} disabled={exceptionsLoading}><RefreshCw size={16} className={exceptionsLoading ? 'spin' : ''} /> Recheck Razorpay</button></div>
+      {exceptions.length === 0 ? <div className="empty-state" style={{ padding: 28 }}><div className="empty-state-title">No unresolved payments</div><div className="empty-state-desc">Captured orders are reconciled automatically during refresh.</div></div> : <div className="table-container"><table className="admin-table"><thead><tr><th>Customer</th><th>Order</th><th>Issue</th><th>Amount</th><th>Created</th></tr></thead><tbody>{exceptions.map(item => { const customer = customersByUserId.get(item.customer_id); const stale = item.payment_status === 'CREATED'; return <tr key={item._id}><td><strong>{customer?.name || 'Unknown customer'}</strong><div className="text-muted" style={{fontSize:12}}>{customer?.customerId || item.customer_id}</div></td><td style={{fontSize:12}}>{item.razorpay_order_id}</td><td><span className={`badge ${stale ? 'warning' : 'danger'}`}><AlertTriangle size={12} /> {stale ? 'Confirmation delayed' : 'Payment failed'}</span></td><td style={{fontWeight:800}}>₹{Number(item.amount || 0).toLocaleString('en-IN')}</td><td style={{fontSize:12}}>{new Date(item.createdAt).toLocaleString('en-IN')}</td></tr>; })}</tbody></table></div>}
+    </div>
     <div className="panel">
       <div className="panel-header ledger-panel-header">
-        <div><span className="ledger-kicker">Wallet movement</span><h3>Transaction Ledger</h3></div>
+        <div><span className="ledger-kicker">Payment history</span><h3>Transaction Ledger</h3></div>
         <button className="btn btn-outline" onClick={handleExportCSV} disabled={filteredTxs.length === 0}>
           <Download size={16} /> Export CSV
         </button>

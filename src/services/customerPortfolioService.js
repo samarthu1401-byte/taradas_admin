@@ -1,6 +1,5 @@
 import { generateClient } from 'aws-amplify/api';
 import { schemeService } from './schemeService';
-import { walletService } from './walletService';
 
 const paymentQuery = `query GetCustomerPayments($customerId: String!) {
   getAllTransactions(customerId: $customerId) {
@@ -30,14 +29,11 @@ const displayStatus = (scheme) => {
 export const customerPortfolioService = {
   async load(customer, schemeDefinitions = []) {
     const client = generateClient();
-    const [walletResult, walletTransactionsResult, schemesResult, paymentsResult] = await Promise.allSettled([
-      walletService.getWallet(customer.userId),
-      walletService.listTransactions(customer.userId),
+    const [schemesResult, paymentsResult] = await Promise.allSettled([
       schemeService.getCustomerSchemes(customer.userId),
       client.graphql({ query: paymentQuery, variables: { customerId: customer.userId }, authMode: 'userPool' }),
     ]);
 
-    const legacyWallet = walletResult.status === 'fulfilled' ? walletResult.value : {};
     const customerSchemes = schemesResult.status === 'fulfilled' ? schemesResult.value : [];
     const definitions = new Map(schemeDefinitions.map(item => [item._id, item]));
     const schemeMap = new Map(customerSchemes.map(item => [item._id, item]));
@@ -59,17 +55,6 @@ export const customerPortfolioService = {
       status: displayStatus(scheme),
     }));
 
-    const walletTransactions = walletTransactionsResult.status === 'fulfilled'
-      ? walletTransactionsResult.value.map(item => ({
-          id: item.id,
-          date: item.createdAt,
-          amount: item.amount,
-          type: item.type,
-          assetAdded: item.asset,
-          desc: item.description || 'Wallet transaction',
-          status: 'SUCCESS',
-        }))
-      : [];
     const paymentItems = paymentsResult.status === 'fulfilled'
       ? paymentsResult.value.data?.getAllTransactions || []
       : [];
@@ -89,13 +74,13 @@ export const customerPortfolioService = {
           orderId: item.razorpay_order_id,
         };
       });
-    const transactions = [...walletTransactions, ...paymentTransactions]
+    const transactions = paymentTransactions
       .sort((left, right) => new Date(right.date) - new Date(left.date));
 
     return {
-      inrBalance: Number(legacyWallet?.inrBalance || 0),
+      inrBalance: 0,
       gold24kBalance: activeSchemes.reduce((sum, scheme) => sum + scheme.totalGoldGrams, 0),
-      silverBalance: Number(legacyWallet?.silverBalance || 0),
+      silverBalance: 0,
       totalInvested: activeSchemes.reduce((sum, scheme) => sum + scheme.totalPaid, 0),
       transactions,
       activeSchemes,

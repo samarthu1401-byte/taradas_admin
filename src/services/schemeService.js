@@ -19,11 +19,18 @@ export const schemeService = {
     });
     return response.data?.getCustomerSchemes || [];
   },
-  async collectCashInstallment(customerSchemeId) {
+  async collectCashInstallment(customerSchemeId, paymentDate) {
     const response = await getClient().graphql({
-      query: `mutation CollectCashInstallment($customerSchemeId: String!) { collectCashInstallment(customerSchemeId: $customerSchemeId) { _id installment_number status amount_paid gold_rate grams_allocated } }`,
+      query: `mutation CollectCashInstallment($customerSchemeId: String!, $paymentDate: String) { collectCashInstallment(customerSchemeId: $customerSchemeId, paymentDate: $paymentDate) { _id installment_number status amount_paid gold_rate grams_allocated } }`,
+      variables: { customerSchemeId, paymentDate }, authMode: 'userPool'
+    });
+    return response.data?.collectCashInstallment;
+  },
+  async getInstallments(customerSchemeId) {
+    const response = await getClient().graphql({
+      query: `query GetInstallments($customerSchemeId: String!) { getInstallments(customerSchemeId: $customerSchemeId) { _id installment_number due_date paid_date amount_paid gold_rate grams_allocated status } }`,
       variables: { customerSchemeId }, authMode: 'userPool'
     });
-    return response.data.collectCashInstallment;
+    return response.data?.getInstallments || [];
   },
 };

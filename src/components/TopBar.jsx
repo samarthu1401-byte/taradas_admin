@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAdmin } from '../context/AdminContext';
-import { Bell, Menu, ChevronDown, Sun, Moon } from 'lucide-react';
+import { Menu, ChevronDown, Sun, Moon } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import ProfilePanel from './ProfilePanel';
 
@@ -12,7 +12,7 @@ const PAGE_TITLES = {
   '/schemes': 'Scheme Management',
   '/gold-rates': 'Live Gold Rates',
   '/register': 'Register Customer',
-  '/missed-payments': 'SIP Defaulters',
+  '/missed-payments': 'Missed Payments',
   '/withdrawals': 'Withdrawal Approvals',
   '/daily-report': 'Daily Collection Report',
   '/scheme-overview': 'Scheme Overview',
@@ -62,10 +62,6 @@ export default function TopBar({ onMenuClick, isDark, onToggleDark }) {
         >
           {isDark ? <Sun size={16} /> : <Moon size={16} />}
         </button>
-
-        <div style={{ position: 'relative', cursor: 'pointer' }}>
-          <Bell size={20} className="text-muted" />
-        </div>
 
         {/* Clickable profile area */}
         <div style={{ position: 'relative' }}>

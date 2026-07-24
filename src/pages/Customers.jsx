@@ -1,35 +1,20 @@
-import { Fragment, useEffect, useState, useMemo } from 'react';
+import { Fragment, useState } from 'react';
 import { useAdmin } from '../context/AdminContext';
-import { useLivePrice } from '../context/LivePriceContext';
-import { Search, ChevronDown, ChevronUp, Edit, IndianRupee, Trash2, X, UserPlus } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, Edit, Trash2, X, UserPlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { walletService } from '../services/walletService';
 import { customerService } from '../services/customerService';
 import PageLead from '../components/PageLead';
 
 export default function Customers() {
-  const { getAllUsers, getUserWallet, showToast, customers, refreshCustomers, customersLoading, customersError } = useAdmin();
-  const { prices } = useLivePrice();
-
+  const { showToast, customers, refreshCustomers, customersLoading, customersError } = useAdmin();
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedUser, setExpandedUser] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
-  // Accept Cash modal state
-  const [cashUser, setCashUser] = useState(null);
-  const [cashAmount, setCashAmount] = useState('');
-  const [cashCreditType, setCashCreditType] = useState('inr');
-  const [cashProcessing, setCashProcessing] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [savingCustomer, setSavingCustomer] = useState(false);
-
-  useEffect(() => {
-    refreshCustomers().catch(error => {
-      console.error('Customer CRM load failed:', error);
-    });
-  }, []);
 
   const deleteCustomer = async (user) => {
     if (!window.confirm(`Delete ${user.name}? This permanently removes the customer login and profile.`)) return;
@@ -40,10 +25,7 @@ export default function Customers() {
     } catch (error) { showToast(error?.errors?.[0]?.message || error.message, 'error'); }
   };
 
-  const usersData = useMemo(() => {
-    const users = getAllUsers();
-    return users.map(u => ({ ...u, wallet: getUserWallet(u.phone) }));
-  }, [customers, getAllUsers, getUserWallet]);
+  const usersData = customers;
 
   const filteredUsers = usersData.filter(u =>
     u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -54,19 +36,6 @@ export default function Customers() {
 
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
   const paginatedUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-  const openCashModal = (e, user) => {
-    e.stopPropagation();
-    setCashUser({ ...user, wallet: getUserWallet(user.phone) });
-    setCashAmount('');
-    setCashCreditType('inr');
-  };
-
-  const closeCashModal = () => {
-    setCashUser(null);
-    setCashAmount('');
-    setCashCreditType('inr');
-  };
 
   const openEditCustomer = (user) => {
     setEditingUser(user);
@@ -85,29 +54,6 @@ export default function Customers() {
     finally { setSavingCustomer(false); }
   };
 
-
-  const handleCashCredit = async (e) => {
-    e.preventDefault();
-    const val = parseFloat(cashAmount);
-    if (!val || val <= 0) return;
-
-    setCashProcessing(true);
-    try {
-      let assetAdded = 'inr';
-      let assetAmount = val;
-
-      if (cashCreditType === 'gold24k') {
-        assetAmount = val / prices.gold24k.price;
-        assetAdded = 'gold';
-      }
-
-      await walletService.creditWallet({ customerId: cashUser.userId, asset: cashCreditType, amount: parseFloat(assetAmount.toFixed(4)), type: 'credit', description: 'Cash deposit by Admin' });
-      showToast(`Credited ${assetAmount.toFixed(4)} ${assetAdded.toUpperCase()} to ${cashUser.name}`, 'success');
-      closeCashModal();
-      await refreshCustomers();
-    } catch (error) { showToast(error?.errors?.[0]?.message || error.message, 'error'); }
-    finally { setCashProcessing(false); }
-  };
 
   return (
     <>
@@ -172,19 +118,12 @@ export default function Customers() {
                         <div style={{ fontSize: 13 }}>{user.pincode || '—'}</div>
                       </td>
                       <td>
-                        <div style={{ fontWeight: 'bold' }}>₹{(user.wallet?.totalInvested || 0).toLocaleString('en-IN')} invested</div>
+                        <div style={{ fontWeight: 'bold' }}>₹{(user.wallet?.totalInvested || 0).toLocaleString('en-IN')} advance paid</div>
                         <div className="text-gold" style={{ fontSize: 12 }}>{(user.wallet?.gold24kBalance || 0).toFixed(4)}g Gold</div>
                       </td>
                       <td>
                         <div className="d-flex gap-2" onClick={e => e.stopPropagation()}>
-                          <button
-                            className="btn btn-primary"
-                            style={{ padding: '6px 12px', fontSize: 12 }}
-                            title="Accept Cash"
-                            onClick={e => openCashModal(e, user)}
-                          >
-                            <IndianRupee size={14} /> Cash
-                          </button>
+                          <Link className="btn btn-primary" style={{ padding: '6px 12px', fontSize: 12 }} title="Accept Cash" to="/accept-cash">Cash</Link>
                           <button className="btn btn-outline" style={{ padding: '6px 9px', color: '#dc2626' }} title="Delete customer" onClick={() => deleteCustomer(user)}>
                             <Trash2 size={14} />
                           </button>
@@ -253,7 +192,13 @@ export default function Customers() {
                                           {tx.type === 'credit' ? '+' : '-'}{tx.amount} {tx.assetAdded === 'gold' ? 'g' : 'INR'}
                                         </span>
                                       </div>
-                                      <div className="text-muted">{new Date(tx.date).toLocaleDateString()}</div>
+                                      <div className="text-muted">{(() => {
+                                         if (!tx.date) return '';
+                                         try {
+                                           const d = new Date(tx.date);
+                                           return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-IN');
+                                         } catch { return ''; }
+                                       })()}</div>
                                     </div>
                                   ))}
                                 </div>
@@ -294,79 +239,6 @@ export default function Customers() {
           )}
         </div>
       </div>
-
-      {/* Accept Cash Modal */}
-      {cashUser && (
-        <div className="modal-overlay" onClick={closeCashModal}>
-          <div className="modal" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Accept Cash — {cashUser.name}</h3>
-              <button className="modal-close" onClick={closeCashModal}><X size={16} /></button>
-            </div>
-
-            <div className="modal-body">
-              <div className="d-flex justify-between align-center mb-4" style={{ padding: '12px 16px', background: '#f9f9f9', borderRadius: 8, border: '1px solid #eee' }}>
-                <div className="text-muted" style={{ fontSize: 12 }}>+91 {cashUser.phone}</div>
-                <div className="text-right">
-                  <div className="text-muted" style={{ fontSize: 11 }}>Current INR Vault</div>
-                  <div style={{ fontSize: 18, fontWeight: 'bold' }}>₹{(cashUser.wallet.inrBalance || 0).toLocaleString()}</div>
-                </div>
-              </div>
-
-              <form onSubmit={handleCashCredit}>
-                <div className="form-group">
-                  <label>Cash Amount Received (₹)</label>
-                  <div className="d-flex align-center" style={{ position: 'relative' }}>
-                    <IndianRupee size={18} style={{ position: 'absolute', left: 14 }} className="text-muted" />
-                    <input
-                      type="number"
-                      className="form-control"
-                      style={{ paddingLeft: 44, fontSize: 18, fontWeight: 'bold' }}
-                      value={cashAmount}
-                      onChange={e => setCashAmount(e.target.value)}
-                      required
-                      min="1"
-                      autoFocus
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label>Credit As</label>
-                  <div className="d-flex gap-3">
-                    {[
-                      { value: 'inr', label: 'INR Balance', sub: null },
-                      { value: 'gold24k', label: '24K Gold', sub: cashAmount && cashCreditType === 'gold24k' ? `${(parseFloat(cashAmount) / prices.gold24k.price).toFixed(4)}g` : null },
-                    ].map(opt => (
-                      <label
-                        key={opt.value}
-                        style={{
-                          flex: 1, padding: 14,
-                          border: `2px solid ${cashCreditType === opt.value ? 'var(--gold)' : '#ddd'}`,
-                          borderRadius: 8, cursor: 'pointer',
-                          background: cashCreditType === opt.value ? '#FFF8E7' : '#fff',
-                          textAlign: 'center',
-                        }}
-                      >
-                        <input type="radio" name="cashCreditType" value={opt.value} checked={cashCreditType === opt.value} onChange={() => setCashCreditType(opt.value)} style={{ display: 'none' }} />
-                        <div style={{ fontWeight: 'bold', fontSize: 13 }}>{opt.label}</div>
-                        {opt.sub && <div style={{ fontSize: 11, color: 'var(--maroon)', marginTop: 3 }}>{opt.sub}</div>}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="modal-footer" style={{ padding: '16px 0 0', margin: 0, border: 'none', background: 'none' }}>
-                  <button type="button" className="btn btn-secondary" onClick={closeCashModal}>Cancel</button>
-                  <button type="submit" className="btn btn-primary" disabled={cashProcessing || !cashAmount}>
-                    {cashProcessing ? 'Processing...' : `Confirm & Credit ₹${cashAmount || 0}`}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
 
       {editingUser && (
         <div className="modal-overlay" onClick={() => setEditingUser(null)}><div className="modal" onClick={event => event.stopPropagation()}><div className="modal-header"><h3>Edit {editingUser.name}</h3><button className="modal-close" onClick={() => setEditingUser(null)}><X size={16} /></button></div><form onSubmit={saveCustomer}><div className="modal-body"><div className="form-row"><div className="form-group"><label>Name</label><input className="form-control" value={editForm.name} onChange={event => setEditForm(value => ({ ...value, name: event.target.value }))} required /></div><div className="form-group"><label>Phone</label><input className="form-control" value={editForm.phoneNumber} onChange={event => setEditForm(value => ({ ...value, phoneNumber: event.target.value }))} required /></div></div><div className="form-row"><div className="form-group"><label>Email</label><input type="email" className="form-control" value={editForm.email} onChange={event => setEditForm(value => ({ ...value, email: event.target.value }))} required /></div><div className="form-group"><label>Status</label><select className="form-control" value={String(editForm.active)} onChange={event => setEditForm(value => ({ ...value, active: event.target.value === 'true' }))}><option value="true">Active</option><option value="false">Inactive</option></select></div></div><div className="form-group"><label>Address</label><input className="form-control" value={editForm.address} onChange={event => setEditForm(value => ({ ...value, address: event.target.value }))} /></div><div className="form-row"><div className="form-group"><label>City</label><input className="form-control" value={editForm.city} onChange={event => setEditForm(value => ({ ...value, city: event.target.value }))} /></div><div className="form-group"><label>Pincode</label><input className="form-control" value={editForm.pincode} onChange={event => setEditForm(value => ({ ...value, pincode: event.target.value }))} /></div></div></div><div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={() => setEditingUser(null)}>Cancel</button><button type="submit" className="btn btn-primary" disabled={savingCustomer}>{savingCustomer ? 'Saving…' : 'Save Changes'}</button></div></form></div></div>

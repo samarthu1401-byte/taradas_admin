@@ -78,10 +78,11 @@ export default function Schemes() {
     }
   };
 
+  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchSchemes();
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
   useEffect(() => {
     return () => clearInterval(countdownRef.current);
@@ -161,7 +162,7 @@ export default function Schemes() {
     e.preventDefault();
     if (enteredOtp.length !== 6) { setOtpError('Enter the 6-digit OTP.'); return; }
     if (enteredOtp === generatedOtp) {
-      client.graphql({ query: DEACTIVATE_SCHEME, variables: { id: pendingDeleteId }, authMode: 'userPool' }).then(() => { showToast('Scheme deactivated', 'success'); closeOtpModal(); fetchSchemes(); }).catch(error => showToast(error?.errors?.[0]?.message || error.message, 'error'));
+      getClient().graphql({ query: DEACTIVATE_SCHEME, variables: { id: pendingDeleteId }, authMode: 'userPool' }).then(() => { showToast('Scheme deactivated', 'success'); closeOtpModal(); fetchSchemes(); }).catch(error => showToast(error?.errors?.[0]?.message || error.message, 'error'));
     } else {
       setOtpError('Incorrect OTP. Please try again.');
       setEnteredOtp('');
