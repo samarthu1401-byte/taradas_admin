@@ -26,5 +26,83 @@ export default function Withdrawals() {
 
   const filteredRequests = requests.filter(request => (statusFilter === 'all' || request.status === statusFilter) && (!dateFilter || request.createdAt.startsWith(dateFilter)));
   const customerDetails = customerId => customers.find(customer => customer.userId === customerId);
-  return <><PageLead eyebrow="Approval desk" title="Withdrawals" description="Review and action customer withdrawal requests with full status visibility." /><div className="panel"><div className="panel-header"><h3 className="d-flex align-center gap-2"><PackageOpen /> Withdrawal Approvals</h3><div className="d-flex gap-2"><input className="form-control" type="date" value={dateFilter} onChange={event => setDateFilter(event.target.value)} /><select className="form-control" style={{ width: 150 }} value={statusFilter} onChange={event => setStatusFilter(event.target.value)}><option value="all">All statuses</option><option value="Pending">Pending</option><option value="Approved">Approved</option><option value="Rejected">Rejected</option></select></div></div><div className="table-container"><table className="admin-table"><thead><tr><th>Date</th><th>Customer</th><th>Type</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead><tbody>{filteredRequests.map(request => { const customer = customerDetails(request.customerId); return <tr key={request.id}><td>{(() => { if (!request.createdAt) return ''; try { const d = new Date(request.createdAt); return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-IN'); } catch { return ''; } })()}</td><td><strong>{customer?.name || request.customerId}</strong><div className="text-muted" style={{ fontSize: 12 }}>{customer?.customerId || request.customerId}</div></td><td>{request.type}</td><td>{request.amount} {request.asset}</td><td><span className={`badge ${request.status === 'Pending' ? 'warning' : request.status === 'Approved' ? 'success' : 'danger'}`}>{request.status}</span></td><td>{request.status === 'Pending' && <div className="d-flex gap-2"><button className="btn btn-outline" onClick={() => handleAction(request, 'Approve')}><CheckCircle size={16} /></button><button className="btn btn-outline" onClick={() => handleAction(request, 'Reject')}><XCircle size={16} /></button></div>}</td></tr>})}{!filteredRequests.length && <tr><td colSpan="6" className="text-center text-muted">No withdrawal requests found.</td></tr>}</tbody></table></div></div></>;
+  return (
+    <>
+      <PageLead eyebrow="Approval desk" title="Withdrawals & Redemptions" description="Review and action customer scheme redemptions and gold wallet requests with full status visibility." />
+      <div className="panel">
+        <div className="panel-header">
+          <h3 className="d-flex align-center gap-2"><PackageOpen size={20} /> Withdrawal Approvals</h3>
+          <div className="d-flex gap-2">
+            <input className="form-control" type="date" value={dateFilter} onChange={event => setDateFilter(event.target.value)} />
+            <select className="form-control" style={{ width: 160 }} value={statusFilter} onChange={event => setStatusFilter(event.target.value)}>
+              <option value="all">All statuses</option>
+              <option value="Pending">Pending</option>
+              <option value="Approved">Approved</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+          </div>
+        </div>
+        <div className="table-container">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Customer Details</th>
+                <th>Request Type</th>
+                <th>24K Gold Quantity</th>
+                <th>Bonus Status</th>
+                <th>Status</th>
+                <th>Decision Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRequests.map(request => {
+                const customer = customerDetails(request.customerId);
+                return (
+                  <tr key={request.id}>
+                    <td>{(() => { if (!request.createdAt) return '—'; try { const d = new Date(request.createdAt); return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-IN'); } catch { return '—'; } })()}</td>
+                    <td>
+                      <strong>{customer?.name || request.customerId}</strong>
+                      <div className="text-muted" style={{ fontSize: 12 }}>ID: {customer?.customerId || request.customerId} | Ph: {customer?.phoneNumber || '—'}</div>
+                    </td>
+                    <td><span className="badge info">{request.type}</span></td>
+                    <td><strong style={{ color: 'var(--gold-dark)', fontSize: 15 }}>{request.amount} {request.asset ? request.asset.toUpperCase() : '24K Gold'}</strong></td>
+                    <td>
+                      {request.installmentsPaid >= 12 || request.status === 'Approved' ? (
+                        <span style={{ fontSize: 12, color: '#10B981', fontWeight: 700 }}>✨ ₹1,000 Bonus Gold Credited</span>
+                      ) : (
+                        <span style={{ fontSize: 12, color: 'var(--gold-dark)', fontWeight: 700 }}>🎁 ₹1,000 Bonus Eligible on 12th Inst.</span>
+                      )}
+                    </td>
+                    <td><span className={`badge ${request.status === 'Pending' ? 'warning' : request.status === 'Approved' ? 'success' : 'danger'}`}>{request.status}</span></td>
+                    <td>
+                      {request.status === 'Pending' ? (
+                        <div className="d-flex gap-2">
+                          <button className="btn btn-outline" style={{ color: '#10B981', borderColor: '#10B981' }} onClick={() => handleAction(request, 'Approve')} title="Approve Redemption">
+                            <CheckCircle size={16} /> Approve
+                          </button>
+                          <button className="btn btn-outline" style={{ color: '#EF4444', borderColor: '#EF4444' }} onClick={() => handleAction(request, 'Reject')} title="Reject Request">
+                            <XCircle size={16} /> Reject
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-muted" style={{ fontSize: 12 }}>Actioned ({request.status})</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+              {!filteredRequests.length && (
+                <tr>
+                  <td colSpan="7" className="text-center text-muted" style={{ padding: 30 }}>
+                    No withdrawal requests matching selected filters.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
 }

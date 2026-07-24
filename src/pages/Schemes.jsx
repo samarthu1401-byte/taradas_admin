@@ -203,18 +203,24 @@ export default function Schemes() {
           {schemes.map(s => (
             <div key={s.id} className="scheme-card">
               <div className="d-flex justify-between align-center mb-3">
-                <h4 style={{ fontSize: 18, color: 'var(--maroon)' }}>{s.name}</h4>
+                <div>
+                  <h4 style={{ fontSize: 20, margin: 0 }}>{s.name}</h4>
+                  <div style={{ fontSize: 11, color: 'var(--gold-dark)', fontWeight: 800, letterSpacing: '0.08em', marginTop: 3 }}>24K HALLMARK PURE GOLD</div>
+                </div>
                 <span className="badge info">{s.schemeType}</span>
               </div>
               <p className="scheme-card-description">{s.description}</p>
               <div className="mb-4">
-                <div style={{ fontSize: 12, color: 'var(--text-light)', textTransform: 'uppercase' }}>Installment Amount</div>
-                <div style={{ fontSize: 20, fontWeight: 'bold' }}>₹{s.installmentAmount?.toLocaleString()}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 4 }}>Total Installments: {s.totalInstallments}</div>
+                <div style={{ fontSize: 11, color: 'var(--gold-dark)', textTransform: 'uppercase', fontWeight: 800 }}>Installment Amount</div>
+                <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--dark)', marginTop: 2 }}>₹{s.installmentAmount?.toLocaleString()}</div>
+                <div className="d-flex justify-between align-center" style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 6, paddingTop: 6, borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+                  <span>Total Installments: <strong>{s.totalInstallments}</strong></span>
+                  <span style={{ color: 'var(--gold-dark)', fontWeight: 700 }}>₹1,000 Bonus Gold</span>
+                </div>
               </div>
               <div className="scheme-card-actions">
                 <button className="btn btn-outline w-100" onClick={() => handleOpenModal(s)}>
-                  <Edit size={14} /> Edit
+                  <Edit size={14} /> Edit Plan
                 </button>
                 <button className="btn btn-danger" onClick={() => handleDeleteClick(s.id)}>
                   <Trash2 size={14} />

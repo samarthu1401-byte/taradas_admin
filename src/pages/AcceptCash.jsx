@@ -132,11 +132,7 @@ export default function AcceptCash() {
   const goldRate22k = prices?.gold22k?.price || 6600;
   const goldRate18k = prices?.gold18k?.price || 5400;
 
-  const getGoldRateForKarat = (karat) => {
-    if (karat === '18K') return goldRate18k;
-    if (karat === '22K') return goldRate22k;
-    return goldRate24k;
-  };
+  const getGoldRateForKarat = () => goldRate24k;
 
   // Helper to compute actual paid count for a scheme
   const getActualPaidCount = (scheme, user) => {
