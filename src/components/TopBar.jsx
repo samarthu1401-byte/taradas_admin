@@ -39,7 +39,19 @@ export default function TopBar({ onMenuClick, isDark, onToggleDark }) {
         <button className="btn btn-outline topbar-menu-btn" style={{ padding: 8, border: 'none' }} onClick={onMenuClick}>
           <Menu size={20} />
         </button>
-        <h1 className="page-title">{PAGE_TITLES[location.pathname] || 'Store Management'}</h1>
+        <div className="d-flex align-center gap-2">
+          <img
+            src="/logo.png"
+            alt="Taradas Logo"
+            style={{
+              width: 32, height: 32, borderRadius: 8, objectFit: 'cover',
+              background: '#fff', border: '1px solid var(--gold)',
+              boxShadow: '0 2px 8px rgba(198,153,62,0.2)'
+            }}
+            onError={(e) => { e.target.style.display = 'none'; }}
+          />
+          <h1 className="page-title">{PAGE_TITLES[location.pathname] || 'Store Management'}</h1>
+        </div>
       </div>
 
       <div className="topbar-actions">

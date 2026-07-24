@@ -47,16 +47,28 @@ export default function Sidebar({ isOpen, collapsed }) {
   return (
     <aside className={`sidebar${isOpen ? ' open' : ''}${collapsed ? ' collapsed' : ''}`}>
       <div className="sidebar-header">
-        <div
-          className="logo-icon"
-          style={{ flexShrink: 0 }}
-        >
-          T
+        <div style={{ position: 'relative', width: 40, height: 40, flexShrink: 0 }}>
+          <img
+            src="/logo.png"
+            alt="Taradas Jewellers Logo"
+            style={{
+              width: 40, height: 40, borderRadius: 10, objectFit: 'cover',
+              background: '#fff', border: '1.5px solid var(--gold)',
+              boxShadow: '0 4px 12px rgba(198,153,62,0.35)'
+            }}
+            onError={(e) => {
+              e.target.style.display = 'none';
+              e.target.nextSibling.style.display = 'flex';
+            }}
+          />
+          <div className="logo-icon" style={{ display: 'none', position: 'absolute', top: 0, left: 0, width: 40, height: 40 }}>
+            T
+          </div>
         </div>
         {!collapsed && (
           <div className="sidebar-header-text">
             <h2>TARADAS</h2>
-            <span>Admin Panel</span>
+            <span>Jewellers Admin</span>
           </div>
         )}
       </div>
