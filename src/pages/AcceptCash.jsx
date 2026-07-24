@@ -358,6 +358,23 @@ export default function AcceptCash() {
 
       const addedPaid = actualPaid + installmentsCount;
 
+      // Persist to local payments cache so page refreshes retain paid state
+      try {
+        const localPayments = JSON.parse(localStorage.getItem('taradas_local_payments') || '[]');
+        for (let i = 0; i < installmentsCount; i++) {
+          localPayments.push({
+            customerSchemeId: selectedScheme._id,
+            customerId: selectedUser.userId || selectedUser.customerId,
+            amount: singleInstAmount,
+            date: isoDate,
+            paymentDate: collectionDate,
+          });
+        }
+        localStorage.setItem('taradas_local_payments', JSON.stringify(localPayments));
+      } catch (e) {
+        console.warn('LocalStorage payment persist error:', e);
+      }
+
       // Update local state
       setCustomerSchemes(prev => prev.map(s => {
         if (s._id === selectedScheme._id) {
