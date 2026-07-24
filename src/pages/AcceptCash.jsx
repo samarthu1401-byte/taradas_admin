@@ -58,7 +58,7 @@ const getNextDueDateInfo = (scheme, actualPaid) => {
   };
 };
 
-// Calculate payable installments strictly due UP TO TODAY (present day)
+// Calculate payable installments strictly due ON OR BEFORE TODAY (present day)
 const getPayableInstallmentsTillToday = (scheme, actualPaid = 0) => {
   if (!scheme) return [];
   const list = [];
@@ -72,7 +72,7 @@ const getPayableInstallmentsTillToday = (scheme, actualPaid = 0) => {
   }
 
   const today = new Date();
-  today.setHours(23, 59, 59, 999); // End of present day
+  today.setHours(23, 59, 59, 999); // Strict end of today (present day)
 
   for (let i = paid + 1; i <= total; i++) {
     const k = i - 1; // 0-based offset
@@ -84,36 +84,18 @@ const getPayableInstallmentsTillToday = (scheme, actualPaid = 0) => {
 
     dueDate.setHours(0, 0, 0, 0);
 
-    // Filter strictly for due dates ON OR BEFORE present day
+    // STRICT FILTER: ONLY include if due date is ON OR BEFORE PRESENT DAY (TODAY)
     if (dueDate <= today) {
       list.push({
         installmentNumber: i,
         dueDateIso: dueDate.toISOString().split('T')[0],
         dueDateDisplay: dueDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
         amount: scheme.installment_amount || 0,
-        isFuture: false,
       });
     } else {
+      // Due date is in the future (e.g. tomorrow / 25th) -> STOP AND DO NOT ALLOW
       break;
     }
-  }
-
-  // Fallback: If no installments are overdue or due till today, allow 1 current cycle
-  if (list.length === 0 && paid < total) {
-    const k = paid;
-    const dueDate = new Date(startDate);
-    if (scheme.scheme_type === 'DAILY') dueDate.setDate(dueDate.getDate() + k);
-    else if (scheme.scheme_type === 'WEEKLY') dueDate.setDate(dueDate.getDate() + k * 7);
-    else dueDate.setMonth(dueDate.getMonth() + k);
-    dueDate.setHours(0, 0, 0, 0);
-
-    list.push({
-      installmentNumber: paid + 1,
-      dueDateIso: dueDate.toISOString().split('T')[0],
-      dueDateDisplay: dueDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
-      amount: scheme.installment_amount || 0,
-      isFuture: true,
-    });
   }
 
   return list;
@@ -311,25 +293,26 @@ export default function AcceptCash() {
   // Calculations for selected scheme
   const actualPaid = selectedScheme ? getActualPaidCount(selectedScheme, selectedUser) : 0;
   
-  // Filtered installments strictly due UP TO TODAY
+  // Filtered installments strictly due ON OR BEFORE TODAY
   const payableTillTodayList = useMemo(() => {
     return selectedScheme ? getPayableInstallmentsTillToday(selectedScheme, actualPaid) : [];
   }, [selectedScheme, actualPaid]);
 
   const currentRate = selectedScheme ? getGoldRateForKarat(selectedScheme.gold_carat) : 7200;
   const singleInstAmount = selectedScheme ? selectedScheme.installment_amount : 0;
-  const totalAmountDue = singleInstAmount * installmentsCount;
+  const totalAmountDue = singleInstAmount * (payableTillTodayList.length > 0 ? installmentsCount : 0);
   const totalGoldGrams = currentRate > 0 ? (totalAmountDue / currentRate).toFixed(4) : '0.0000';
   const dueDateInfo = selectedScheme ? getNextDueDateInfo(selectedScheme, actualPaid) : null;
 
   // Selected Installment Due Dates List
   const selectedDueDates = useMemo(() => {
     if (!payableTillTodayList || payableTillTodayList.length === 0) return [];
-    return payableTillTodayList.slice(0, installmentsCount).map(item => item.dueDateDisplay);
+    const validCount = Math.min(installmentsCount, payableTillTodayList.length);
+    return payableTillTodayList.slice(0, validCount).map(item => item.dueDateDisplay);
   }, [payableTillTodayList, installmentsCount]);
 
   const coveredDatesText = useMemo(() => {
-    if (selectedDueDates.length === 0) return '';
+    if (selectedDueDates.length === 0) return 'None';
     if (selectedDueDates.length === 1) return selectedDueDates[0];
     if (selectedDueDates.length === 2) return `${selectedDueDates[0]} & ${selectedDueDates[1]}`;
     return `${selectedDueDates[0]} to ${selectedDueDates[selectedDueDates.length - 1]}`;
@@ -346,7 +329,7 @@ export default function AcceptCash() {
   // Handle Cash Collection Approval
   const handleCollect = async (e) => {
     e.preventDefault();
-    if (!selectedScheme || !selectedUser) return;
+    if (!selectedScheme || !selectedUser || payableTillTodayList.length === 0) return;
 
     setProcessing(true);
 
@@ -462,7 +445,7 @@ export default function AcceptCash() {
       <PageLead
         eyebrow="Express Collection Desk"
         title="Accept Cash & Wallet Credit"
-        description="Fast 3-step cashier workstation: Search customer, choose payment count with exact installment due dates, and approve cash payment instantly."
+        description="Fast 3-step cashier workstation: Search customer, choose payment count for present-day due installments, and approve cash payment instantly."
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20, alignItems: 'start' }}>
@@ -650,50 +633,63 @@ export default function AcceptCash() {
                         <label style={{ fontWeight: 600, fontSize: 12, marginBottom: 4, display: 'block' }}>
                           How Many Payments?
                         </label>
-                        <select
-                          className="form-control"
-                          value={installmentsCount}
-                          onChange={e => setInstallmentsCount(Number(e.target.value))}
-                          style={{ fontSize: 13, fontWeight: 600 }}
-                        >
-                          {payableTillTodayList.map((item, idx) => {
-                            const num = idx + 1;
-                            const isMonthly = selectedScheme.scheme_type === 'MONTHLY' || !selectedScheme.scheme_type;
-                            const unitLabel = isMonthly
-                              ? (num === 1 ? '1 Month' : `${num} Months`)
-                              : (num === 1 ? '1 Installment' : `${num} Installments`);
+                        {payableTillTodayList.length > 0 ? (
+                          <select
+                            className="form-control"
+                            value={installmentsCount}
+                            onChange={e => setInstallmentsCount(Number(e.target.value))}
+                            style={{ fontSize: 13, fontWeight: 600 }}
+                          >
+                            {payableTillTodayList.map((item, idx) => {
+                              const num = idx + 1;
+                              const isMonthly = selectedScheme.scheme_type === 'MONTHLY' || !selectedScheme.scheme_type;
+                              const unitLabel = isMonthly
+                                ? (num === 1 ? '1 Month' : `${num} Months`)
+                                : (num === 1 ? '1 Installment' : `${num} Installments`);
 
-                            let datesText = '';
-                            if (num === 1) {
-                              datesText = ` (${item.dueDateDisplay})`;
-                            } else if (num === 2) {
-                              datesText = ` (${payableTillTodayList[0].dueDateDisplay} & ${payableTillTodayList[1].dueDateDisplay})`;
-                            } else {
-                              datesText = ` (${payableTillTodayList[0].dueDateDisplay} to ${payableTillTodayList[num - 1].dueDateDisplay})`;
-                            }
+                              let datesText = '';
+                              if (num === 1) {
+                                datesText = ` (${item.dueDateDisplay})`;
+                              } else if (num === 2) {
+                                datesText = ` (${payableTillTodayList[0].dueDateDisplay} & ${payableTillTodayList[1].dueDateDisplay})`;
+                              } else {
+                                datesText = ` (${payableTillTodayList[0].dueDateDisplay} to ${payableTillTodayList[num - 1].dueDateDisplay})`;
+                              }
 
-                            const cost = num * singleInstAmount;
+                              const cost = num * singleInstAmount;
 
-                            return (
-                              <option key={num} value={num}>
-                                {unitLabel}{datesText} — ₹{cost.toLocaleString()}
-                              </option>
-                            );
-                          })}
-                        </select>
+                              return (
+                                <option key={num} value={num}>
+                                  {unitLabel}{datesText} — ₹{cost.toLocaleString()}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        ) : (
+                          <div style={{ padding: '8px 12px', background: '#fee2e2', color: '#dc2626', borderRadius: 8, fontSize: 12, fontWeight: 600, border: '1px solid #fca5a5' }}>
+                            No Due Installments
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    {/* Subtext: Present day due summary & covered dates badge */}
-                    <div style={{ fontSize: 11, color: '#444', background: '#f8fafc', padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 12 }}>
-                      <div className="d-flex align-center gap-2 mb-1" style={{ color: '#10b981', fontWeight: 600 }}>
-                        <CheckCircle2 size={13} />
-                        <span>Selected Payment: {installmentsCount} Installment{installmentsCount > 1 ? 's' : ''}</span>
+                    {/* Subtext Notice */}
+                    {payableTillTodayList.length > 0 ? (
+                      <div style={{ fontSize: 11, color: '#444', background: '#f8fafc', padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 12 }}>
+                        <div className="d-flex align-center gap-2 mb-1" style={{ color: '#10b981', fontWeight: 600 }}>
+                          <CheckCircle2 size={13} />
+                          <span>Selected Payment: {installmentsCount} Installment{installmentsCount > 1 ? 's' : ''}</span>
+                        </div>
+                        <div style={{ color: 'var(--dark)', fontWeight: 600 }}>
+                          Due Date{selectedDueDates.length > 1 ? 's' : ''} Covered: <span style={{ color: 'var(--maroon)' }}>{coveredDatesText}</span>
+                        </div>
                       </div>
-                      <div style={{ color: 'var(--dark)', fontWeight: 600 }}>
-                        Due Date{selectedDueDates.length > 1 ? 's' : ''} Covered: <span style={{ color: 'var(--maroon)' }}>{coveredDatesText}</span>
+                    ) : (
+                      <div style={{ fontSize: 12, color: '#065f46', background: '#d1fae5', padding: '10px 14px', borderRadius: 8, border: '1px solid #a7f3d0', marginBottom: 16 }}>
+                        <CheckCircle2 size={15} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 6 }} />
+                        <strong>All installments due up to today ({formatDateSafe(new Date())}) are fully paid!</strong> Next installment is due on {getNextDueDateInfo(selectedScheme, actualPaid).dueDateDisplay}.
                       </div>
-                    </div>
+                    )}
 
                     {/* Payment Mode & Reference Note */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
@@ -706,6 +702,7 @@ export default function AcceptCash() {
                           value={paymentMode}
                           onChange={e => setPaymentMode(e.target.value)}
                           style={{ fontSize: 13 }}
+                          disabled={payableTillTodayList.length === 0}
                         >
                           <option value="CASH">Cash at Counter</option>
                           <option value="UPI">UPI Transfer</option>
@@ -725,6 +722,7 @@ export default function AcceptCash() {
                           value={operatorNotes}
                           onChange={e => setOperatorNotes(e.target.value)}
                           style={{ fontSize: 13 }}
+                          disabled={payableTillTodayList.length === 0}
                         />
                       </div>
                     </div>
@@ -747,12 +745,13 @@ export default function AcceptCash() {
                       className="btn btn-primary w-100"
                       style={{
                         padding: 14, fontSize: 16, fontWeight: 700,
-                        background: 'linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%)',
-                        border: 'none', borderRadius: 10, boxShadow: '0 4px 14px rgba(198,153,62,0.3)'
+                        background: payableTillTodayList.length > 0 ? 'linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%)' : '#ccc',
+                        border: 'none', borderRadius: 10, boxShadow: payableTillTodayList.length > 0 ? '0 4px 14px rgba(198,153,62,0.3)' : 'none',
+                        cursor: payableTillTodayList.length > 0 ? 'pointer' : 'not-allowed'
                       }}
-                      disabled={processing || !selectedScheme}
+                      disabled={processing || !selectedScheme || payableTillTodayList.length === 0}
                     >
-                      {processing ? 'Processing...' : `Approve Collection · ₹${totalAmountDue.toLocaleString()}`}
+                      {processing ? 'Processing...' : payableTillTodayList.length > 0 ? `Approve Collection · ₹${totalAmountDue.toLocaleString()}` : 'All Due Installments Up to Today Paid'}
                     </button>
                   </>
                 )}
