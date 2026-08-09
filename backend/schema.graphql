@@ -1,0 +1,277 @@
+schema {
+  query: Query
+  mutation: Mutation
+}
+
+type CustomerScheme {
+  _id: ID!
+  bonus_eligible: Boolean
+  createdAt: AWSDateTime
+  customer_id: String!
+  enrolled_date: AWSDateTime!
+  gold_carat: String!
+  installment_amount: Float!
+  installments_paid: Int
+  maturity_date: AWSDateTime!
+  scheme_id: String!
+  scheme_type: String!
+  status: String
+  total_gold_grams: Float
+  total_installments: Int!
+  total_paid_amount: Float
+  updatedAt: AWSDateTime
+}
+
+type GoldRate {
+  authority: String!
+  createdAt: AWSDateTime
+  currency: String!
+  date: String!
+  gold18K: Float!
+  gold22K: Float!
+  gold24K: Float!
+  sourceTimestamp: String!
+  unit: String!
+  updatedAt: AWSDateTime
+}
+
+type GoldScheme {
+  _id: ID!
+  createdAt: AWSDateTime
+  description: String
+  duration_months: Int
+  gold_carat: String
+  installment_amount: Float!
+  is_active: Boolean!
+  key_features: [String]
+  scheme_name: String!
+  scheme_type: String!
+  total_installments: Int!
+  updatedAt: AWSDateTime
+}
+
+type Installment {
+  _id: ID!
+  amount_paid: Float
+  due_date: AWSDateTime
+  gold_rate: Float
+  grams_allocated: Float
+  installment_number: Int
+  paid_date: AWSDateTime
+  payment_transaction_id: String
+  status: String
+}
+
+type Mutation {
+  applyReferralCode(input: ApplyReferralCodeInput!): ReferralUsage!
+  setupMyMpin(deviceId: String!, deviceSecret: String!, mpin: String!, deviceName: String, platform: String, appVersion: String): Response!
+  setupMyBiometric(deviceId: String!, biometricSecret: String, enabled: Boolean!): Response!
+  revokeMyDevice(deviceId: String!, currentDeviceId: String!): Response!
+  updateScheme(input: UpdateSchemeInput!): GoldScheme!
+  deactivateScheme(id: ID!): GoldScheme!
+  updateWithdrawalStatus(input: UpdateWithdrawalInput!): Withdrawal!
+  updateCustomer(input: UpdateCustomerInput!): User!
+  deleteCustomer(userId: ID!): Boolean!
+  createGoldPayment(input: CreateGoldPaymentInput!): PaymentOrderResponse
+  collectCashInstallment(customerSchemeId: String!, paymentDate: String): Installment
+  updateMyCustomer(input: UpdateMyCustomerInput!): User!
+  createScheme(input: CreateSchemeInput!): GoldScheme
+  enrollScheme(input: EnrollInput!): CustomerScheme
+  redeemScheme(customerSchemeId: String!): RedeemResponse
+  setGoldRate(input: SetGoldRateInput!): GoldRate!
+  signUpUser(aadharcardNo: String!, address: String!, city: String!, email: AWSEmail!, name: String!, pancardNo: String!, phoneNumber: AWSPhone!, pincode: String!, userId: String): User!
+}
+
+type PaymentOrderResponse {
+  amount: Float
+  currency: String
+  installmentsCovered: Int
+  key: String
+  orderId: String
+}
+
+type PaymentTransaction {
+  _id: ID!
+  amount: Float!
+  createdAt: String!
+  customer_id: String!
+  customer_scheme_id: String!
+  installments_covered: Int!
+  payment_status: String!
+  razorpay_order_id: String!
+  razorpay_payment_id: String
+  razorpay_signature: String
+  updatedAt: String!
+}
+
+type Query {
+  getMyCustomer: User!
+  getAvatarUploadUrl: String!
+  getReferralStatus: ReferralStatus!
+  listWithdrawals(status: String): [Withdrawal!]!
+  listCustomers: [User!]!
+  getAllTransactions(customerId: String!): [PaymentTransaction]
+  getCustomerSchemes(customerId: String!): [CustomerScheme]
+  getGoldRate: [GoldRate]
+  getInstallments(customerSchemeId: String!): [Installment]
+  getSchemeTransactions(customerSchemeId: String!): [PaymentTransaction]
+  getSchemes: [GoldScheme]
+  getTop10Transactions(customerId: String!): [PaymentTransaction]
+  listPaymentExceptions: [PaymentTransaction!]!
+  getMyDevices(currentDeviceId: String!, deviceName: String, platform: String, appVersion: String): [SecurityDevice!]!
+}
+
+type SecurityDevice {
+  deviceId: ID!
+  deviceName: String!
+  platform: String!
+  appVersion: String
+  current: Boolean!
+  biometricEnabled: Boolean!
+  failedAttempts: Int!
+  lockedUntil: AWSDateTime
+  createdAt: AWSDateTime
+  lastActiveAt: AWSDateTime
+}
+
+type ReferralStatus {
+  referral_code: String
+  referral_history: [ReferralUsage!]!
+  user_id: ID!
+  wallet_points: Int
+}
+
+type ReferralUsage {
+  awarded_at: AWSDateTime
+  createdAt: AWSDateTime
+  payment_transaction_id: String
+  points_awarded: Int
+  referral_code: String!
+  referred_user_id: String!
+  referrer_user_id: String!
+  status: ReferralUsageStatus!
+  updatedAt: AWSDateTime
+}
+
+enum ReferralUsageStatus {
+  AWARDED
+  PENDING
+  SKIPPED
+}
+
+type RedeemResponse {
+  bonus_amount: Float
+  customer_paid: Float
+  total_gold_grams: Float
+  total_value: Float
+}
+
+type Response {
+  message: String
+  success: Boolean
+  verified: Boolean
+}
+
+type User {
+  customerId: String!
+  aadharcardNo: String
+  active: Boolean!
+  address: String
+  avatarUrl: String
+  city: String
+  createdOn: AWSDateTime!
+  email: AWSEmail!
+  expiredOn: AWSDateTime
+  name: String!
+  pancardNo: String
+  phoneNumber: AWSPhone!
+  pincode: String
+  referral_code: String
+  userId: ID!
+  initialPassword: String
+}
+
+type Withdrawal {
+  id: ID!
+  customerId: ID!
+  asset: String!
+  amount: Float!
+  type: String!
+  status: String!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+
+input CreateGoldPaymentInput {
+  amount: Float!
+  customerSchemeId: String!
+  installmentsCount: Int
+}
+
+input UpdateCustomerInput {
+  userId: ID!
+  name: String
+  email: AWSEmail
+  phoneNumber: AWSPhone
+  address: String
+  city: String
+  pincode: String
+  aadharcardNo: String
+  pancardNo: String
+  active: Boolean
+}
+
+input UpdateMyCustomerInput {
+  name: String
+  address: String
+  city: String
+  pincode: String
+  avatarUrl: String
+}
+
+input UpdateWithdrawalInput {
+  id: ID!
+  status: String!
+}
+
+input CreateSchemeInput {
+  description: String!
+  duration_months: Int!
+  gold_carat: String
+  installment_amount: Float!
+  scheme_name: String!
+  scheme_type: String!
+  total_installments: Int!
+}
+
+input UpdateSchemeInput {
+  id: ID!
+  scheme_name: String
+  scheme_type: String
+  gold_carat: String
+  description: String
+  installment_amount: Float
+  total_installments: Int
+  duration_months: Int
+  is_active: Boolean
+}
+
+input EnrollInput {
+  customer_id: String!
+  gold_carat: String!
+  installment_amount: Float!
+  scheme_id: String!
+  scheme_type: String!
+  total_installments: Int!
+}
+
+input ApplyReferralCodeInput {
+  referralCode: String!
+}
+
+input SetGoldRateInput {
+  date: String
+  gold24K: Float!
+  gold22K: Float!
+  gold18K: Float!
+}

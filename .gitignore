@@ -18,8 +18,8 @@ dist
 dist-ssr
 *.local
 
-# Backend and deployment artifacts are maintained separately.
-/backend/
+# Deployment zip archives
+*.zip
 /.agents/
 bedrock_chat.py
 

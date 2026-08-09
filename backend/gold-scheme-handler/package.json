@@ -1,0 +1,10 @@
+{
+  "name": "gold-scheme-handler",
+  "version": "1.0.0",
+  "description": "Gold scheme handler backend lambda",
+  "main": "index.js",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.750.0",
+    "@aws-sdk/s3-request-presigner": "^3.750.0"
+  }
+}

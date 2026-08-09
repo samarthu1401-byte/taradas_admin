@@ -1,0 +1,9 @@
+{
+    "name": "lambda",
+    "version": "1.0.0",
+    "type": "module",
+    "dependencies": {
+        "@aws-sdk/client-cognito-identity-provider": "^3.1085.0",
+        "mongoose": "^8.0.0"
+    }
+}

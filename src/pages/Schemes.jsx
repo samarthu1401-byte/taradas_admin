@@ -12,6 +12,7 @@ const GET_SCHEMES = `
       _id
       scheme_name
       scheme_type
+      gold_carat
       installment_amount
       total_installments
       duration_months
@@ -38,7 +39,7 @@ export default function Schemes() {
   const [editingId, setEditingId] = useState(null);
 
   const [formData, setFormData] = useState({
-    name: '', description: '', installmentAmount: '', totalInstallments: '', durationMonths: '', schemeType: 'MONTHLY', benefits: ''
+    name: '', description: '', installmentAmount: '', totalInstallments: '', durationMonths: '', schemeType: 'MONTHLY', goldCarat: '24K', benefits: ''
   });
 
   // OTP delete flow
@@ -62,6 +63,7 @@ export default function Schemes() {
         id: s._id,
         name: s.scheme_name,
         schemeType: s.scheme_type,
+        goldCarat: s.gold_carat || '24K',
         installmentAmount: s.installment_amount,
         totalInstallments: s.total_installments,
         durationMonths: s.duration_months,
@@ -98,11 +100,12 @@ export default function Schemes() {
         totalInstallments: scheme.totalInstallments?.toString(), 
         durationMonths: scheme.durationMonths?.toString() || '',
         schemeType: scheme.schemeType, 
+        goldCarat: scheme.goldCarat || '24K',
         benefits: scheme.benefits.join('\n') 
       });
     } else {
       setEditingId(null);
-      setFormData({ name: '', description: '', installmentAmount: '', totalInstallments: '', durationMonths: '', schemeType: 'MONTHLY', benefits: '' });
+      setFormData({ name: '', description: '', installmentAmount: '', totalInstallments: '', durationMonths: '', schemeType: 'MONTHLY', goldCarat: '24K', benefits: '' });
     }
     setIsModalOpen(true);
   };
@@ -112,7 +115,15 @@ export default function Schemes() {
     if (!formData.name || !formData.installmentAmount || !formData.totalInstallments) return;
     
     try {
-      const input = { scheme_name: formData.name, scheme_type: formData.schemeType, installment_amount: parseFloat(formData.installmentAmount), total_installments: parseInt(formData.totalInstallments, 10), duration_months: parseInt(formData.durationMonths, 10), description: formData.description || 'No description provided' };
+      const input = { 
+        scheme_name: formData.name, 
+        scheme_type: formData.schemeType, 
+        gold_carat: formData.goldCarat || '24K',
+        installment_amount: parseFloat(formData.installmentAmount), 
+        total_installments: parseInt(formData.totalInstallments, 10), 
+        duration_months: parseInt(formData.durationMonths, 10), 
+        description: formData.description || 'No description provided' 
+      };
       await getClient().graphql({
         query: editingId ? UPDATE_SCHEME : CREATE_SCHEME,
         variables: editingId ? { input: { id: editingId, ...input } } : { input },
@@ -257,6 +268,14 @@ export default function Schemes() {
                       <option value="WEEKLY">Weekly</option>
                       <option value="MONTHLY">Monthly</option>
                       <option value="YEARLY">Yearly</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Gold Karat</label>
+                    <select className="form-control" value={formData.goldCarat} onChange={e => setFormData({ ...formData, goldCarat: e.target.value })}>
+                      <option value="24K">24K Pure Gold</option>
+                      <option value="22K">22K Standard Gold</option>
+                      <option value="18K">18K Gold</option>
                     </select>
                   </div>
                   <div className="form-group">
